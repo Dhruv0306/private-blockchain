@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+    <!--
+      OWASP Dependency-Check suppressions.
+      Every entry MUST include <notes> with:
+        - Why this specific CVE does not apply to this project
+        - Ticket/issue tracking the suppression for future review
+        - Expiry date after which this suppression should be reconsidered
+
+      DO NOT suppress CVEs that apply. Fix them instead.
+    -->
+
+    <!-- ─── Spring Boot Actuator: CVE-2026-22733 ───────────────────────
+         Score: 8.2  Auth bypass via CloudFoundry Actuator path conflict.
+         Full fix requires Spring Boot 4.0.4, but that is a major version
+         jump. We are on 3.5.12 (latest 3.x patch). This CVE only applies
+         when ALL of: (1) Spring Security in use, (2) an app endpoint path
+         conflicts with the CloudFoundry actuator path (/cloudfoundryapplication/**),
+         (3) CloudFoundry hosting is used.
+         Our deployment is not on CloudFoundry. Management server port is
+         isolated to internal network only (management.server.port=8081).
+         Review: Ticket #blockchain-sec-001. Revisit when upgrading to SB 4.x. -->
+    <suppress until="2026-12-31Z">
+        <notes>CVE-2026-22733: CloudFoundry-specific auth bypass. Project is not
+            deployed on CloudFoundry. Actuator port restricted to internal network.
+            See ticket blockchain-sec-001. Revisit on Spring Boot 4.x upgrade.</notes>
+        <cve>CVE-2026-22733</cve>
+    </suppress>
+
+    <!-- ─── Spring Context: CVE-2024-38820 / CVE-2025-22233 ───────────
+         Score: 3.1  Locale-dependent DataBinder disallowedFields bypass.
+         We do not use DataBinder.setDisallowedFields() anywhere in the
+         codebase — we use constructor binding exclusively per the Spring
+         recommendation. Grep confirms no disallowedFields usage.
+         Review: blockchain-sec-002. Remove if disallowedFields is ever added. -->
+    <suppress until="2026-06-30Z">
+        <notes>CVE-2024-38820 / CVE-2025-22233: DataBinder.setDisallowedFields()
+            locale bypass. Project uses constructor binding only; no disallowedFields
+            calls exist in codebase (grep-verified). See blockchain-sec-002.</notes>
+        <cve>CVE-2024-38820</cve>
+        <cve>CVE-2025-22233</cve>
+    </suppress>
+
+    <!-- ─── XMLUnit: CVE-2024-31573 ───────────────────────────────────
+         Score: 4.0  XSLT extension function RCE.
+         XMLUnit is a test-scope dependency only (scope=test). It is never
+         used at runtime. The attack requires processing untrusted XSLT
+         stylesheets, which our tests do not do — we only compare fixed
+         XML strings from known sources.
+         Review: blockchain-sec-003. Upgrade to xmlunit 2.10.0+ when available
+         in the test dependency chain. -->
+    <suppress until="2026-06-30Z">
+        <notes>CVE-2024-31573: XSLT extension RCE in XMLUnit. Test-scope only;
+            never in production classpath. Tests use trusted XML only. Upgrade
+            tracked in blockchain-sec-003.</notes>
+        <cve>CVE-2024-31573</cve>
+    </suppress>
+
+    <!-- ─── AssertJ: CVE-2026-24400 ───────────────────────────────────
+         Score: 7.3  XXE in XmlStringPrettyFormatter / isXmlEqualTo().
+         assertj-core is test-scope only. We do not call isXmlEqualTo() or
+         XmlStringPrettyFormatter.toXmlDocument() with untrusted XML in any
+         test. All XML in our tests is internally generated.
+         Action: Replace all isXmlEqualTo() calls with XMLUnit assertions per
+         AssertJ's own deprecation guidance. Track in blockchain-sec-004.
+         This suppression should be removed once blockchain-sec-004 is done. -->
+    <suppress until="2026-03-31Z">
+        <notes>CVE-2026-24400: XXE in AssertJ XmlStringPrettyFormatter.
+            Test-scope only. No isXmlEqualTo() with untrusted input. Migration
+            to XMLUnit in progress — see blockchain-sec-004. Remove this suppression
+            when migration is complete.</notes>
+        <cve>CVE-2026-24400</cve>
+    </suppress>
+
+    <!-- ─── Logback: CVE-2025-11226 / CVE-2024-12798 ──────────────────
+         Score: 6.9 / 6.6  ACE via Janino + compromised logback config.
+         These CVEs require: (1) Janino on classpath AND (2) write access to
+         logback config OR control of an env variable pointing to a config.
+         We do NOT have janino on the classpath (no spring-boot-starter-web
+         dependency pulls it unless explicit). logback config is baked into the
+         JAR at build time and not externally configurable.
+         Note: Already upgraded to logback 1.5.25 which patches CVE-2024-12798.
+         CVE-2025-11226 is also patched in 1.5.19+. This suppression is a
+         belt-and-suspenders note that Janino is absent. -->
+    <suppress until="2026-06-30Z">
+        <notes>CVE-2025-11226 / CVE-2024-12798: ACE requires Janino on classpath.
+            Janino is not a dependency of this project. Logback upgraded to 1.5.25
+            which patches both CVEs. Suppression retained to document Janino absence.
+            See blockchain-sec-005.</notes>
+        <cve>CVE-2025-11226</cve>
+        <cve>CVE-2024-12798</cve>
+    </suppress>
+
+    <!-- ─── Spring Web/WebMVC: CVE-2026-22740 ─────────────────────────
+         Score: 6.5  WebFlux multipart temp files not deleted after request,
+         allowing disk space exhaustion.
+         Status: NO fix version available in 6.x branch as of this scan.
+         Fix only exists in Spring 7.x (not yet adopted — major version jump).
+         Mitigation applied in application code:
+           1. multipart.max-file-size and multipart.max-request-size are set
+              to conservative limits (10MB / 50MB) in application.yml.
+           2. We do not use WebFlux reactive multipart in this project —
+              only Spring MVC blocking multipart (not affected by this CVE).
+         Review ticket: blockchain-sec-006. Reassess when Spring Boot 4.x
+         (Spring Framework 7.x) is adopted. -->
+    <suppress until="2026-12-31Z">
+        <notes>CVE-2026-22740: WebFlux multipart temp file leak. No 6.x fix available.
+            Project uses Spring MVC (blocking), not WebFlux reactive stack.
+            CVE only affects WebFlux multipart. See blockchain-sec-006.</notes>
+        <cve>CVE-2026-22740</cve>
+    </suppress>
+
+    <!-- ─── Spring Web/WebMVC: CVE-2026-22741 ─────────────────────────
+         Score: 3.1  Cache poisoning in static resource chain when:
+           (1) resource chain caching enabled AND
+           (2) encoded resource resolution enabled AND
+           (3) cache is empty at attack time.
+         Status: NO fix version in 6.x branch as of scan.
+         Mitigation: We do not use Spring's ResourceChainRegistration with
+         EncodedResourceResolver + CachingResourceResolver in this project.
+         Our static resources (example Spring Boot demo only) are served with
+         the default resolver chain (no caching enabled in dev mode).
+         Review ticket: blockchain-sec-007. Low priority due to 3.1 score
+         and three required preconditions. -->
+    <suppress until="2026-12-31Z">
+        <notes>CVE-2026-22741: Static resource cache poisoning (score 3.1). No 6.x fix.
+            Requires EncodedResourceResolver + CachingResourceResolver — not configured
+            in this project. See blockchain-sec-007.</notes>
+        <cve>CVE-2026-22741</cve>
+    </suppress>
+
+</suppressions>

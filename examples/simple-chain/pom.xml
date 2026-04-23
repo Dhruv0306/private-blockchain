@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.privatechain</groupId>
+        <artifactId>private-blockchain</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>example-simple-chain</artifactId>
+    <packaging>jar</packaging>
+    <name>Example: Simple Chain</name>
+    <description>
+        Minimal standalone example. Creates a BlockchainNode with PoW, defines a
+        MoneyTransferTransaction subclass, submits transactions, mines a block, and
+        validates the chain. Run with: mvn exec:java
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-crypto</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-consensus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-storage</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <mainClass>com.privatechain.examples.SimpleChainDemo</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

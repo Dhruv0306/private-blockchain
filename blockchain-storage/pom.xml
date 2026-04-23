@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.privatechain</groupId>
+        <artifactId>private-blockchain</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>blockchain-storage</artifactId>
+    <packaging>jar</packaging>
+    <name>Blockchain Storage Implementations</name>
+    <description>
+        BlockchainStorage implementations: InMemoryStorage (HashMap, for testing),
+        LevelDBStorage (embedded LevelDB via leveldbjni), RocksDBStorage (embedded
+        RocksDB for high throughput), FileSystemStorage (one JSON file per block).
+        All pass the StorageTCK abstract test suite.
+    </description>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-core</artifactId>
+        </dependency>
+
+        <!-- Jackson — needed to serialize Block to/from JSON bytes for storage -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
+        <!-- LevelDB — native JNI wrapper -->
+        <dependency>
+            <groupId>org.fusesource.leveldbjni</groupId>
+            <artifactId>leveldbjni-all</artifactId>
+            <!-- optional: consumers who only want InMemoryStorage need not pull this in -->
+            <optional>true</optional>
+        </dependency>
+
+        <!-- RocksDB — native JNI wrapper -->
+        <dependency>
+            <groupId>org.rocksdb</groupId>
+            <artifactId>rocksdbjni</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+    </dependencies>
+
+</project>

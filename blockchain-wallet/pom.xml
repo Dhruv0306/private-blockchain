@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.privatechain</groupId>
+        <artifactId>private-blockchain</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>blockchain-wallet</artifactId>
+    <packaging>jar</packaging>
+    <name>Blockchain Wallet</name>
+    <description>
+        EC key pair management, Wallet (sign transactions, derive address, compute
+        balance), WalletManager (create, import, list), and KeystoreSerializer
+        (AES-128-CTR encrypted keystore in Web3 Secret Storage v3 format).
+    </description>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-crypto</artifactId>
+        </dependency>
+
+        <!-- BouncyCastle for PBKDF2 and AES-CTR in keystore encryption -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+        </dependency>
+
+        <!-- Jackson for keystore JSON serialization -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+    </dependencies>
+
+</project>

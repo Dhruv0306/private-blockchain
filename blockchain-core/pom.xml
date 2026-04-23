@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.privatechain</groupId>
+        <artifactId>private-blockchain</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>blockchain-core</artifactId>
+    <packaging>jar</packaging>
+    <name>Blockchain Core</name>
+    <description>
+        Immutable block and transaction models, SPI interfaces (ConsensusEngine,
+        TransactionValidator, BlockchainStorage, BlockchainEventListener),
+        Blockchain chain manager, Mempool, EventBus, and BlockchainNode bootstrap.
+        Zero mandatory transitive dependencies beyond the JDK.
+    </description>
+
+    <dependencies>
+
+        <!-- Jackson for JSON serialization of models.
+             Optional at runtime — consumers may exclude if they use a different mapper. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+    </dependencies>
+
+</project>

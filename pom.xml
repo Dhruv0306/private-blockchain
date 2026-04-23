@@ -1,0 +1,619 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ═══════════════════════════════════════════════════════
+         ROOT / PARENT POM
+         All child modules inherit from this.
+         ═══════════════════════════════════════════════════════ -->
+    <groupId>com.privatechain</groupId>
+    <artifactId>private-blockchain</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Private Blockchain</name>
+    <description>
+        Modular, embeddable Java private blockchain library with pluggable
+        consensus, storage, validation, and access control.
+    </description>
+    <url>https://github.com/your-org/private-blockchain</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <!-- ─── Child modules ──────────────────────────────────── -->
+    <modules>
+        <module>blockchain-core</module>
+        <module>blockchain-crypto</module>
+        <module>blockchain-consensus</module>
+        <module>blockchain-storage</module>
+        <module>blockchain-network</module>
+        <module>blockchain-wallet</module>
+        <module>blockchain-access</module>
+        <module>blockchain-spring</module>
+        <module>examples/simple-chain</module>
+        <module>examples/spring-boot-demo</module>
+        <module>examples/custom-consensus</module>
+    </modules>
+
+    <!-- ─── Global properties ─────────────────────────────── -->
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- Dependency versions — change once, apply everywhere -->
+        <!-- ═══════════════════════════════════════════════════════════
+             DEPENDENCY VERSIONS — Last security audit: 2025
+             All versions below patched against findings in
+             vulnerable_dependencies.txt (Mend.io scan).
+             ═══════════════════════════════════════════════════════════ -->
+
+        <!-- jackson-core 2.17.1 → 2.21.1
+             GHSA-72hv-8253-57qq / WS-2026-0003 (CVSS 7.5)
+             Async parser bypassed maxNumberLength → DoS via memory exhaustion -->
+        <jackson.version>2.21.1</jackson.version>
+
+        <!-- bcprov-jdk18on 1.78.1 → 1.84
+             CVE-2026-0636 (CVSS 5.3)
+             LDAP injection in LDAPStoreHelper (affects 1.74–1.83) -->
+        <bouncycastle.version>1.84</bouncycastle.version>
+
+        <!-- netty 4.1.110/111.Final → 4.2.11.Final
+             Previous scan (2025-04): bumped to 4.2.10.Final fixing:
+               CVE-2025-58057 (7.5) BrotliDecoder OOM DoS
+               CVE-2025-58056 (7.5) HTTP request smuggling via LF chunk terminator
+               CVE-2026-33870 (7.5) Chunked quoted-string smuggling (http)
+               CVE-2025-24970 (7.5) SslHandler native crash
+               CVE-2025-67735 (6.5) CRLF injection in HttpRequestEncoder
+               CVE-2025-59419 (5.3) SMTP command injection in SMTP codec
+             New scan (2025): bumped to 4.2.11.Final additionally fixing:
+               CVE-2026-33871 (7.5) HTTP/2 CONTINUATION frame DoS flood —
+                 codec-http2 requires 4.2.11.Final specifically -->
+        <netty.version>4.2.11.Final</netty.version>
+
+        <!-- Tomcat versions — explicit pin overriding Spring Boot BOM.
+             Spring Boot BOM provides tomcat but may lag behind security patches.
+             New scan (2025): tomcat-embed-core:10.1.52 is vulnerable.
+               CVE-2026-29145 (9.1) CLIENT_CERT auth bypass with soft-fail disabled
+               CVE-2026-29129 (7.5) TLS cipher preference order not preserved
+               CVE-2026-29146 (7.5) Padding Oracle in EncryptInterceptor
+               CVE-2026-34483 (7.5) JSON injection in JsonAccessLogValve
+               CVE-2026-25854 (6.1) Open redirect via LoadBalancerDrainingValve
+               CVE-2026-32990 (5.3) Input validation bypass (incomplete CVE-2025-66614 fix)
+             Fix: 10.1.54+ (stays on 10.x branch matching Spring Boot 3.x) -->
+        <tomcat.version>10.1.54</tomcat.version>
+
+        <!-- protobuf-java 3.25.3 → 4.28.2
+             CVE-2024-7254 (CVSS 7.5)
+             Nested SGROUP tags → unbounded recursion → StackOverflowError -->
+        <protobuf.version>4.28.2</protobuf.version>
+
+        <leveldb.version>1.8</leveldb.version>
+        <rocksdb.version>9.2.1</rocksdb.version>
+
+        <!-- spring-boot 3.3.0 → 3.5.12
+             CVE-2026-22733 (8.2) Auth bypass via CloudFoundry Actuator path conflict
+             CVE-2025-22235 (7.3) EndpointRequest.to() null/** matcher for disabled endpoints
+             Note: spring-boot-actuator 4.0.4 requires Spring Boot 4.x — staying on 3.x
+             branch with the latest 3.x patch that addresses CVE-2025-22235 -->
+        <spring.boot.version>3.5.12</spring.boot.version>
+
+        <junit.version>5.10.3</junit.version>
+        <mockito.version>5.12.0</mockito.version>
+        <slf4j.version>2.0.13</slf4j.version>
+
+        <!-- logback 1.5.6 → 1.5.25
+             CVE-2025-11226 (6.9) ACE via malicious config + Janino + Spring
+             CVE-2024-12798 (6.6) ACE via JaninoEventEvaluator
+             CVE-2026-1225  (5.0) Class instantiation via compromised config
+             CVE-2024-12801 (4.4) SSRF via DOCTYPE in XML config -->
+        <logback.version>1.5.25</logback.version>
+
+        <!-- Plugin versions -->
+        <maven.surefire.version>3.3.0</maven.surefire.version>
+        <maven.failsafe.version>3.3.0</maven.failsafe.version>
+        <jacoco.version>0.8.12</jacoco.version>
+        <checkstyle.version>3.4.0</checkstyle.version>
+        <owasp.version>9.2.0</owasp.version>
+        <!-- protoc-jar-maven-plugin: com.github.os72 group, version 3.11.4
+             (NOT 0.6.1 — that version does not exist on Maven Central;
+              0.6.1 belongs to org.xolstice.maven.plugins:protobuf-maven-plugin,
+              a completely different artifact)
+             Maven Central: https://repo.maven.apache.org/maven2/com/github/os72/protoc-jar-maven-plugin/3.11.4/ -->
+        <protobuf.plugin.version>3.11.4</protobuf.plugin.version>
+        <!-- os-maven-plugin: detects OS/arch classifier for native protoc binary download
+             Required by org.xolstice approach; not needed by com.github.os72 approach -->
+        <os.maven.plugin.version>1.7.1</os.maven.plugin.version>
+        <gpg.plugin.version>3.2.4</gpg.plugin.version>
+        <nexus.staging.version>1.7.0</nexus.staging.version>
+    </properties>
+
+    <!-- ─── Dependency Management (BOM) ──────────────────── -->
+    <dependencyManagement>
+        <dependencies>
+
+            <!-- Internal modules — version from parent -->
+            <dependency>
+                <groupId>com.privatechain</groupId>
+                <artifactId>blockchain-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.privatechain</groupId>
+                <artifactId>blockchain-crypto</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.privatechain</groupId>
+                <artifactId>blockchain-consensus</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.privatechain</groupId>
+                <artifactId>blockchain-storage</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.privatechain</groupId>
+                <artifactId>blockchain-network</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.privatechain</groupId>
+                <artifactId>blockchain-wallet</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.privatechain</groupId>
+                <artifactId>blockchain-access</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.privatechain</groupId>
+                <artifactId>blockchain-spring</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- Jackson -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.datatype</groupId>
+                <artifactId>jackson-datatype-jsr310</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
+            <!-- Cryptography -->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+            </dependency>
+
+            <!-- Networking -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-all</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
+
+            <!-- Storage -->
+            <dependency>
+                <groupId>org.fusesource.leveldbjni</groupId>
+                <artifactId>leveldbjni-all</artifactId>
+                <version>${leveldb.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.rocksdb</groupId>
+                <artifactId>rocksdbjni</artifactId>
+                <version>${rocksdb.version}</version>
+            </dependency>
+
+            <!-- Logging -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${logback.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 TOMCAT — explicit overrides to outpace Spring Boot BOM.
+                 New scan (2025): tomcat-embed-core:10.1.52 flagged.
+                 Fix version: 10.1.54 (10.x branch, compatible with SB 3.x)
+                 Controlled by <tomcat.version> property above.
+                 ═══════════════════════════════════════════════════════════ -->
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+
+            <!-- Spring Boot BOM — imported so spring versions align -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- json-smart: force upgrade over BOM default
+                 CVE-2024-57699 (7.5) Stack exhaustion via deeply nested JSON.
+                 Spring Boot BOM may pull 2.5.1 — we force 2.5.2. -->
+            <dependency>
+                <groupId>net.minidev</groupId>
+                <artifactId>json-smart</artifactId>
+                <version>2.5.2</version>
+            </dependency>
+
+            <!-- xmlunit-core: force upgrade over test BOM default
+                 CVE-2024-31573 (4.0) XSLT extension RCE (test-scope only).
+                 See owasp-suppressions.xml blockchain-sec-003. -->
+            <dependency>
+                <groupId>org.xmlunit</groupId>
+                <artifactId>xmlunit-core</artifactId>
+                <version>2.10.0</version>
+                <scope>test</scope>
+            </dependency>
+
+            <!-- assertj-core: force upgrade
+                 CVE-2026-24400 (7.3) XXE in XmlStringPrettyFormatter (test-scope).
+                 See owasp-suppressions.xml blockchain-sec-004. -->
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>3.27.7</version>
+                <scope>test</scope>
+            </dependency>
+
+            <!-- Testing -->
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-junit-jupiter</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- ─── Dependencies all modules inherit ──────────────── -->
+    <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- ─── Build plugins ─────────────────────────────────── -->
+    <build>
+        <pluginManagement>
+            <plugins>
+
+                <!-- Compiler -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <compilerArgs>
+                            <arg>-Xlint:all</arg>
+                            <arg>-Werror</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+
+                <!-- Unit tests -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven.surefire.version}</version>
+                    <configuration>
+                        <includes>
+                            <include>**/*Test.java</include>
+                            <include>**/*Tests.java</include>
+                        </includes>
+                    </configuration>
+                </plugin>
+
+                <!-- Integration tests -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${maven.failsafe.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Code coverage -->
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco.version}</version>
+                    <executions>
+                        <execution>
+                            <id>prepare-agent</id>
+                            <goals><goal>prepare-agent</goal></goals>
+                        </execution>
+                        <execution>
+                            <id>report</id>
+                            <phase>verify</phase>
+                            <goals><goal>report</goal></goals>
+                        </execution>
+                        <execution>
+                            <id>check</id>
+                            <goals><goal>check</goal></goals>
+                            <configuration>
+                                <rules>
+                                    <rule>
+                                        <element>BUNDLE</element>
+                                        <limits>
+                                            <limit>
+                                                <counter>LINE</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>0.80</minimum>
+                                            </limit>
+                                        </limits>
+                                    </rule>
+                                </rules>
+                                <!-- Only enforce on core and crypto modules -->
+                                <excludes>
+                                    <exclude>com/privatechain/network/**</exclude>
+                                    <exclude>com/privatechain/examples/**</exclude>
+                                </excludes>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Code style -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>${checkstyle.version}</version>
+                    <configuration>
+                        <configLocation>google_checks.xml</configLocation>
+                        <failsOnError>true</failsOnError>
+                        <consoleOutput>true</consoleOutput>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>checkstyle</id>
+                            <phase>validate</phase>
+                            <goals><goal>check</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Security scan -->
+                <plugin>
+                    <groupId>org.owasp</groupId>
+                    <artifactId>dependency-check-maven</artifactId>
+                    <version>${owasp.version}</version>
+                    <configuration>
+                        <failBuildOnCVSS>7</failBuildOnCVSS>
+                        <suppressionFiles>
+                            <suppressionFile>owasp-suppressions.xml</suppressionFile>
+                        </suppressionFiles>
+                    </configuration>
+                </plugin>
+
+                <!-- Javadoc -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.7.0</version>
+                    <configuration>
+                        <doclint>all,-missing</doclint>
+                        <quiet>true</quiet>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals><goal>jar</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Sources jar -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.3.1</version>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals><goal>jar-no-fork</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- GPG signing for Maven Central -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>${gpg.plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>sign-artifacts</id>
+                            <phase>verify</phase>
+                            <goals><goal>sign</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Nexus staging -->
+                <plugin>
+                    <groupId>org.sonatype.plugins</groupId>
+                    <artifactId>nexus-staging-maven-plugin</artifactId>
+                    <version>${nexus.staging.version}</version>
+                    <extensions>true</extensions>
+                    <configuration>
+                        <serverId>ossrh</serverId>
+                        <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+                        <autoReleaseAfterClose>false</autoReleaseAfterClose>
+                    </configuration>
+                </plugin>
+
+            </plugins>
+        </pluginManagement>
+
+        <!-- Active for every module -->
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- ─── Profiles ──────────────────────────────────────── -->
+    <profiles>
+
+        <!-- Release profile: sign + deploy to Maven Central -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.plugins</groupId>
+                        <artifactId>nexus-staging-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Security scan profile: run OWASP check on demand -->
+        <profile>
+            <id>security</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <executions>
+                            <execution>
+                                <goals><goal>aggregate</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
+
+    <!-- ─── Distribution management ──────────────────────── -->
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
+    <scm>
+        <connection>scm:git:https://github.com/your-org/private-blockchain.git</connection>
+        <developerConnection>scm:git:git@github.com:your-org/private-blockchain.git</developerConnection>
+        <url>https://github.com/your-org/private-blockchain</url>
+        <tag>HEAD</tag>
+    </scm>
+
+</project>

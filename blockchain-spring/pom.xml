@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.privatechain</groupId>
+        <artifactId>private-blockchain</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>blockchain-spring</artifactId>
+    <packaging>jar</packaging>
+    <name>Blockchain Spring Boot Integration</name>
+    <description>
+        Optional Spring Boot 3 autoconfiguration. Reads privatechain.* properties
+        from application.yml, creates a BlockchainNode bean with sensible defaults
+        (@ConditionalOnMissingBean), and registers a BlockchainHealthIndicator for
+        Spring Actuator. Add this module to get zero-config Spring integration.
+    </description>
+
+    <dependencies>
+
+        <!-- All library modules -->
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-crypto</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-consensus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-storage</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-network</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-wallet</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-access</artifactId>
+        </dependency>
+
+        <!-- Spring Boot — provided scope: consumers bring their own Boot version -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-actuator-autoconfigure</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Config processor: generates spring-configuration-metadata.json for IDE hints -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test: full Spring Boot test slice -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+</project>

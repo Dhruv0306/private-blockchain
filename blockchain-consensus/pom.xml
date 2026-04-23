@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.privatechain</groupId>
+        <artifactId>private-blockchain</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>blockchain-consensus</artifactId>
+    <packaging>jar</packaging>
+    <name>Blockchain Consensus Implementations</name>
+    <description>
+        Built-in ConsensusEngine implementations: Proof of Work (SHA-256 with
+        configurable difficulty and auto-adjustment), Proof of Authority (authorized
+        signer set), PBFT (3-phase Byzantine fault-tolerant), and Round Robin
+        (simple slot-based, for development). All implement the ConsensusEngine SPI
+        from blockchain-core.
+    </description>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-crypto</artifactId>
+        </dependency>
+
+    </dependencies>
+
+</project>

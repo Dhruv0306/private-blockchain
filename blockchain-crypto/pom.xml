@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.privatechain</groupId>
+        <artifactId>private-blockchain</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>blockchain-crypto</artifactId>
+    <packaging>jar</packaging>
+    <name>Blockchain Cryptography</name>
+    <description>
+        SHA-256/SHA-3/RIPEMD-160 hashing, ECDSA secp256k1 signing, Merkle tree
+        construction and proof verification, EC key pair generation, and address
+        derivation utilities.
+    </description>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-core</artifactId>
+        </dependency>
+
+        <!-- BouncyCastle: secp256k1 curve, RIPEMD-160 -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+        </dependency>
+
+    </dependencies>
+
+</project>
