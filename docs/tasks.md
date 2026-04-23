@@ -24,11 +24,11 @@ Goal: empty but buildable multi-module Maven project, CI green, code-quality gat
 |---|---|---|---|---|
 | T-001 | P0 | Create root `pom.xml` with `<modules>` listing all 9 sub-modules | — | Use `maven-wrapper` (`mvnw`) |
 | T-002 | P0 | Create module POMs for: `blockchain-core`, `blockchain-crypto`, `blockchain-consensus`, `blockchain-network`, `blockchain-storage`, `blockchain-wallet`, `blockchain-access`, `blockchain-mempool`, `blockchain-spring`, `blockchain-examples` | — | All inherit from root POM |
-| T-003 | P0 | Configure `maven-compiler-plugin` for Java 17 source/target | NFR-01 | Enable `--enable-preview` as optional profile |
+| T-003 | P0 | Configure `maven-compiler-plugin` for Java 21 source/target | NFR-01 | Enable `--enable-preview` as optional profile |
 | T-004 | P1 | Configure Checkstyle with Google Java Style (max line length 120) | NFR-10 | Fail build on violation |
 | T-005 | P1 | Configure SpotBugs; fail on HIGH and CRITICAL findings | NFR-10 | Exclude generated code |
 | T-006 | P1 | Configure JaCoCo; enforce 80% line coverage on `blockchain-core` | NFR-05 | Coverage report to `target/site` |
-| T-007 | P1 | Set up GitHub Actions workflow: `build.yml` (compile + test on push), `release.yml` (publish to GitHub Packages on tag) | — | Matrix: JDK 17 and JDK 21 |
+| T-007 | P1 | Set up GitHub Actions workflow: `build.yml` (compile + test on push), `release.yml` (publish to GitHub Packages on tag) | — | Matrix: JDK 21 |
 | T-008 | P2 | Add `.editorconfig`, `.gitignore`, `CONTRIBUTING.md`, `LICENSE` (Apache 2.0) | — | — |
 | T-009 | P2 | Add issue templates: `bug_report.yml`, `feature_request.yml` | — | — |
 

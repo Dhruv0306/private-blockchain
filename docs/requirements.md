@@ -44,7 +44,7 @@ BlockchainNode  ← blockchain-core  (REQUIRED)
 ```
 
 ### 2.2 Constraints
-- Java 17+ (LTS)
+- Java 21 (LTS)
 - Maven 3.8+
 - `blockchain-core` has zero mandatory transitive dependencies beyond the JDK
 - All cryptographic operations use `java.security` as base (BouncyCastle allowed)
@@ -256,7 +256,7 @@ node.start();
 - `NFR-UX-04`: `BlockchainNode.status()` MUST return chain height, mempool size, peer count, last block time.
 
 ### 4.5 Compatibility
-- Java 17, 21, and 23 MUST be supported.
+- Java 21 MUST be supported.
 - `blockchain-core` MUST have zero mandatory transitive dependencies.
 - All modules MUST share the same semantic version number per release.
 
