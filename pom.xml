@@ -496,6 +496,8 @@
                         <suppressionFiles>
                             <suppressionFile>owasp-suppressions.xml</suppressionFile>
                         </suppressionFiles>
+                      <nvdApiKey>${nvdApiKey}</nvdApiKey>
+                      <nvdApiDelay>120000</nvdApiDelay>
                     </configuration>
                 </plugin>
 
@@ -556,6 +558,31 @@
                     </configuration>
                 </plugin>
 
+                <!-- SpotBugs (FindBugs successor) -->
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>4.8.3.1</version>
+                    <configuration>
+                        <effort>max</effort>
+                        <threshold>medium</threshold>
+                        <failOnError>true</failOnError>
+                        <plugins>
+                            <plugin>
+                                <groupId>com.h3xstream.findsecbugs</groupId>
+                                <artifactId>findsecbugs-plugin</artifactId>
+                                <version>1.12.0</version>
+                            </plugin>
+                        </plugins>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>spotbugs</id>
+                            <phase>verify</phase>
+                            <goals><goal>check</goal></goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -572,6 +599,10 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
@@ -617,6 +648,10 @@
                                 <goals><goal>aggregate</goal></goals>
                             </execution>
                         </executions>
+                      <configuration>
+                        <nvdApiKey>${nvdApiKey}</nvdApiKey>
+                        <nvdApiDelay>120000</nvdApiDelay>
+                      </configuration>
                     </plugin>
                 </plugins>
             </build>
