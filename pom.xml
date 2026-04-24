@@ -497,7 +497,7 @@
                             <suppressionFile>owasp-suppressions.xml</suppressionFile>
                         </suppressionFiles>
                       <nvdApiKey>${nvdApiKey}</nvdApiKey>
-                      <nvdApiDelay>120000</nvdApiDelay>
+                      <nvdApiDelay>16000</nvdApiDelay>
                     </configuration>
                 </plugin>
 
@@ -650,7 +650,7 @@
                         </executions>
                       <configuration>
                         <nvdApiKey>${nvdApiKey}</nvdApiKey>
-                        <nvdApiDelay>120000</nvdApiDelay>
+                        <nvdApiDelay>16000</nvdApiDelay>
                       </configuration>
                     </plugin>
                 </plugins>
