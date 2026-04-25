@@ -24,7 +24,7 @@ jobs:
           cache: maven
 
       - name: Build and test
-        run: mvn -B clean verify
+        run: mvn -B -Djava.version=${{ matrix.java-version }} clean verify
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
