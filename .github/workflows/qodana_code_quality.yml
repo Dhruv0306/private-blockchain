@@ -28,7 +28,7 @@ jobs:
                 env:
                     QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
                 with:
-                    image: jetbrains/qodana-jvm-community:2026.1
+                    image: jetbrains/qodana-jvm-community:latest
                     # When pr-mode is set to true, Qodana analyzes only the files that have been changed
                     pr-mode: false
                     use-caches: true
