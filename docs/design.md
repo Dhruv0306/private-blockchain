@@ -10,13 +10,17 @@
 
 The library follows four principles:
 
-**Open/Closed** — every significant behavior is hidden behind an interface (`ConsensusEngine`, `TransactionValidator`, `BlockchainStorage`). Library internals are closed for modification; extension points are wide open.
+**Open/Closed** — every significant behavior is hidden behind an interface (`ConsensusEngine`, `TransactionValidator`,
+`BlockchainStorage`). Library internals are closed for modification; extension points are wide open.
 
-**Dependency inversion** — `blockchain-core` knows nothing about LevelDB, Netty, or Bouncy Castle. Those details live in their own modules. Core depends only on the JDK.
+**Dependency inversion** — `blockchain-core` knows nothing about LevelDB, Netty, or Bouncy Castle. Those details live in
+their own modules. Core depends only on the JDK.
 
-**Explicit wiring** — `BlockchainConfig` and `BlockchainNode` are the only places where modules are composed. No hidden global state, no classpath magic (outside the optional Spring autoconfigure).
+**Explicit wiring** — `BlockchainConfig` and `BlockchainNode` are the only places where modules are composed. No hidden
+global state, no classpath magic (outside the optional Spring autoconfigure).
 
-**Zero-surprise serialization** — `Transaction` is abstract and polymorphic. Jackson `@JsonTypeInfo` ensures subtypes survive round-trips without any extra registration step.
+**Zero-surprise serialization** — `Transaction` is abstract and polymorphic. Jackson `@JsonTypeInfo` ensures subtypes
+survive round-trips without any extra registration step.
 
 ---
 
@@ -49,7 +53,8 @@ The library follows four principles:
                     └─────────────┘
 ```
 
-Every module depends on `blockchain-core`. `blockchain-crypto` is the only module that depends on Bouncy Castle. `blockchain-network` is the only module that depends on Netty.
+Every module depends on `blockchain-core`. `blockchain-crypto` is the only module that depends on Bouncy Castle.
+`blockchain-network` is the only module that depends on Netty.
 
 ---
 
@@ -574,20 +579,32 @@ com.privatechain
 
 ### 7.1 Why `blockchain-core` has zero runtime dependencies
 
-`blockchain-core` defines all public contracts (model, SPI, events). Every Java project can safely depend on it without risking dependency conflicts. The Bouncy Castle, Netty, and LevelDB dependencies that teams often fight over are isolated in their respective modules. A project that only needs the data model and wants to provide its own crypto and storage can depend solely on `blockchain-core`.
+`blockchain-core` defines all public contracts (model, SPI, events). Every Java project can safely depend on it without
+risking dependency conflicts. The Bouncy Castle, Netty, and LevelDB dependencies that teams often fight over are
+isolated in their respective modules. A project that only needs the data model and wants to provide its own crypto and
+storage can depend solely on `blockchain-core`.
 
 ### 7.2 Why `Transaction` is abstract rather than an interface
 
-Interfaces cannot have fields, and `Transaction` has six required fields that every implementation must have. Using an abstract class means library code can safely read `tx.senderAddress` and `tx.signature` without casting. Developers subclass to add fields and have access to the protected `metadata` map for lightweight extension without subclassing.
+Interfaces cannot have fields, and `Transaction` has six required fields that every implementation must have. Using an
+abstract class means library code can safely read `tx.senderAddress` and `tx.signature` without casting. Developers
+subclass to add fields and have access to the protected `metadata` map for lightweight extension without subclassing.
 
 ### 7.3 Why the consensus engine is injected, not configured via a string
 
-String-based configuration (`consensusEngine: "POW"`) requires a registry and reflection, both of which are fragile. Constructor injection means the type system guarantees a valid engine is always present. It also means custom engines (the primary use case for this library) work identically to built-in ones.
+String-based configuration (`consensusEngine: "POW"`) requires a registry and reflection, both of which are fragile.
+Constructor injection means the type system guarantees a valid engine is always present. It also means custom engines (
+the primary use case for this library) work identically to built-in ones.
 
 ### 7.4 Thread safety strategy
 
-`Blockchain.addBlock()` acquires a `ReentrantLock`. All reads of `chain` are done under a `ReadWriteLock`. `TransactionMempool` wraps its `PriorityQueue` with a `ReentrantLock`. `BlockchainEventBus` uses `CopyOnWriteArrayList` so listener registration never blocks event publication.
+`Blockchain.addBlock()` acquires a `ReentrantLock`. All reads of `chain` are done under a `ReadWriteLock`.
+`TransactionMempool` wraps its `PriorityQueue` with a `ReentrantLock`. `BlockchainEventBus` uses `CopyOnWriteArrayList`
+so listener registration never blocks event publication.
 
 ### 7.5 Serialization strategy for Transaction subtypes
 
-Jackson `@JsonTypeInfo(use = Id.CLASS)` is used on `Transaction`. The full class name is written as a `_type` field. This means zero registration overhead but requires that subclass JAR files be present on the deserializing node's classpath. For cross-organization networks, `@JsonTypeInfo(use = Id.NAME)` with a shared type registry is recommended instead and is configurable via `BlockchainConfig.transactionTypeRegistry()`.
+Jackson `@JsonTypeInfo(use = Id.CLASS)` is used on `Transaction`. The full class name is written as a `_type` field.
+This means zero registration overhead but requires that subclass JAR files be present on the deserializing node's
+classpath. For cross-organization networks, `@JsonTypeInfo(use = Id.NAME)` with a shared type registry is recommended
+instead and is configurable via `BlockchainConfig.transactionTypeRegistry()`.

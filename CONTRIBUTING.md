@@ -11,12 +11,13 @@ Thank you for contributing! Follow these guidelines:
 ## Setup
 
 ```bash
-git clone https://github.com/your-org/private-blockchain.git
+git clone https://github.com/Dhruv0306/private-blockchain.git
 cd private-blockchain
 mvn clean install
 ```
 
 ## Build & Test
+
 ```bash
 # Full build with all checks
 mvn clean verify
@@ -29,6 +30,7 @@ mvn -Psecurity verify
 ```
 
 ## Requirements Before Submitting a PR
+
 1. All tests pass: mvn clean verify
 2. Checkstyle clean: No warnings from Google Java Style (120 char limit)
 3. SpotBugs clean: No HIGH or CRITICAL findings
@@ -37,23 +39,28 @@ mvn -Psecurity verify
 6. No plaintext secrets: Verify no API keys, passwords, or private keys in code
 
 ## Code Style
+
 - Follow Google [Java Style Guide](https://google.github.io/styleguide/javaguide.html)
 - Max line length: 120 characters
-- Use 4-space indentation 
+- Use 4-space indentation
 - Write Javadoc for all public methods and classes
 
 ## Commit Message Format
+
 Format: `[TASK-ID] Brief description`
 Example:
+
 ```text
 [T-025] Implement SHA-256 hash utility
 [T-052] Add allowlist manager with unit tests
 ```
 
 ## Security
-- Never commit private keys, certificates, or API tokens 
-- All crypto utilities must undergo peer review 
+
+- Never commit private keys, certificates, or API tokens
+- All crypto utilities must undergo peer review
 - Report security vulnerabilities privately (see SECURITY.md)
 
 ## Questions?
+
 Open an issue or start a discussion on GitHub.

@@ -1,4 +1,5 @@
 # Requirements Specification
+
 ## private-blockchain — Java Maven Library
 
 **Version:** 1.0.0-DRAFT  
@@ -9,10 +10,15 @@
 ## 1. Introduction
 
 ### 1.1 Purpose
-This document specifies the complete functional and non-functional requirements for the `private-blockchain` Java Maven library — a modular, embeddable private blockchain engine for Java applications.
+
+This document specifies the complete functional and non-functional requirements for the `private-blockchain` Java Maven
+library — a modular, embeddable private blockchain engine for Java applications.
 
 ### 1.2 Scope
-The library covers: immutable block/transaction models, pluggable consensus engines, cryptographic primitives, a transaction mempool, P2P networking, configurable persistence, wallet/key management, and private network access control. It does not include a blockchain explorer UI, token economics, or a public network protocol.
+
+The library covers: immutable block/transaction models, pluggable consensus engines, cryptographic primitives, a
+transaction mempool, P2P networking, configurable persistence, wallet/key management, and private network access
+control. It does not include a blockchain explorer UI, token economics, or a public network protocol.
 
 ### 1.3 Definitions
 
@@ -31,6 +37,7 @@ The library covers: immutable block/transaction models, pluggable consensus engi
 ## 2. Product Description
 
 ### 2.1 Module Dependency Model
+
 ```
 Application code
       │
@@ -44,6 +51,7 @@ BlockchainNode  ← blockchain-core  (REQUIRED)
 ```
 
 ### 2.2 Constraints
+
 - Java 17+ (LTS)
 - Maven 3.8+
 - `blockchain-core` has zero mandatory transitive dependencies beyond the JDK
@@ -56,23 +64,30 @@ BlockchainNode  ← blockchain-core  (REQUIRED)
 
 ### 3.1 Core Data Model
 
-**FR-CORE-01:** The library MUST provide an immutable `Block` class: `index` (long), `timestamp` (Instant), `previousHash` (String), `hash` (String), `nonce` (long), `merkleRoot` (String), `version` (int), `transactions` (immutable List).
+**FR-CORE-01:** The library MUST provide an immutable `Block` class: `index` (long), `timestamp` (Instant),
+`previousHash` (String), `hash` (String), `nonce` (long), `merkleRoot` (String), `version` (int), `transactions` (
+immutable List).
 
-**FR-CORE-02:** The library MUST provide an abstract `Transaction` base class users can extend. Base fields: `id` (UUID), `senderAddress`, `receiverAddress`, `amount` (BigDecimal), `timestamp` (Instant), `signature`, `metadata` (Map<String,Object>).
+**FR-CORE-02:** The library MUST provide an abstract `Transaction` base class users can extend. Base fields: `id` (
+UUID), `senderAddress`, `receiverAddress`, `amount` (BigDecimal), `timestamp` (Instant), `signature`, `metadata` (Map<
+String,Object>).
 
 **FR-CORE-03:** All model classes MUST be immutable after construction. Builders MUST be provided.
 
-**FR-CORE-04:** `Blockchain` MUST manage the ordered chain, enforce hash linkage, and delegate validation to the configured `ConsensusEngine`.
+**FR-CORE-04:** `Blockchain` MUST manage the ordered chain, enforce hash linkage, and delegate validation to the
+configured `ConsensusEngine`.
 
 **FR-CORE-05:** `BlockHeader` MUST allow lightweight chain validation without loading transaction lists.
 
-**FR-CORE-06:** `ChainValidator` MUST verify full chain integrity (hash chain, Merkle roots, signatures) without network access.
+**FR-CORE-06:** `ChainValidator` MUST verify full chain integrity (hash chain, Merkle roots, signatures) without network
+access.
 
 **FR-CORE-07:** A genesis block MUST be auto-created on new chain init. Its `previousHash` MUST be 32 zero bytes (hex).
 
 ### 3.2 Consensus Engine SPI
 
 **FR-CONS-01:** `ConsensusEngine` interface MUST define:
+
 - `boolean validateBlock(Block, Blockchain)`
 - `Block mineBlock(List<Transaction>, Block previous)`
 - `String engineName()`
@@ -87,13 +102,15 @@ BlockchainNode  ← blockchain-core  (REQUIRED)
 
 **FR-CONS-06:** Any user class implementing `ConsensusEngine` MUST be injectable at config time.
 
-**FR-CONS-07:** `DifficultyAdjuster` MUST auto-recalibrate PoW difficulty based on average block time over a configurable window.
+**FR-CONS-07:** `DifficultyAdjuster` MUST auto-recalibrate PoW difficulty based on average block time over a
+configurable window.
 
 ### 3.3 Transaction Validator SPI
 
 **FR-TX-01:** `TransactionValidator` MUST define: `ValidationResult validate(Transaction tx, Blockchain chain)`
 
-**FR-TX-02:** `ValidationResult` MUST carry: `boolean success`, `List<String> errors`, `ValidationStatus` enum (`VALID`, `INVALID_SIGNATURE`, `INSUFFICIENT_FUNDS`, `DUPLICATE`, `CUSTOM_REJECTION`).
+**FR-TX-02:** `ValidationResult` MUST carry: `boolean success`, `List<String> errors`, `ValidationStatus` enum (`VALID`,
+`INVALID_SIGNATURE`, `INSUFFICIENT_FUNDS`, `DUPLICATE`, `CUSTOM_REJECTION`).
 
 **FR-TX-03:** Multiple validators MUST be composable in a chain-of-responsibility pattern.
 
@@ -103,7 +120,8 @@ BlockchainNode  ← blockchain-core  (REQUIRED)
 
 ### 3.4 Storage SPI
 
-**FR-STOR-01:** `BlockchainStorage` interface MUST define: `saveBlock(Block)`, `loadBlock(int)`, `loadBlockByHash(String)`, `loadAll()`, `exists(String)`, `chainHeight()`, `deleteAll()`.
+**FR-STOR-01:** `BlockchainStorage` interface MUST define: `saveBlock(Block)`, `loadBlock(int)`,
+`loadBlockByHash(String)`, `loadAll()`, `exists(String)`, `chainHeight()`, `deleteAll()`.
 
 **FR-STOR-02:** `InMemoryStorage` — HashMap-backed, for testing.
 
@@ -147,7 +165,8 @@ BlockchainNode  ← blockchain-core  (REQUIRED)
 
 **FR-WALLET-01:** `Wallet` MUST hold `ECKeyPair`, expose `getAddress()`, and provide `sign(Transaction)`.
 
-**FR-WALLET-02:** `WalletManager` MUST support: `createWallet()`, `importWallet(String pkHex)`, `exportKeystore(Wallet, String password)`, `importKeystore(String json, String password)`.
+**FR-WALLET-02:** `WalletManager` MUST support: `createWallet()`, `importWallet(String pkHex)`,
+`exportKeystore(Wallet, String password)`, `importKeystore(String json, String password)`.
 
 **FR-WALLET-03:** Keystore files MUST be encrypted AES-128-CTR with PBKDF2 MAC (Web3 Secret Storage v3).
 
@@ -190,7 +209,8 @@ BlockchainNode  ← blockchain-core  (REQUIRED)
 
 ### 3.10 Events
 
-**FR-EVENT-01:** `BlockchainEventBus` MUST publish: block added, transaction submitted, transaction confirmed, fork detected, peer connected, peer disconnected.
+**FR-EVENT-01:** `BlockchainEventBus` MUST publish: block added, transaction submitted, transaction confirmed, fork
+detected, peer connected, peer disconnected.
 
 **FR-EVENT-02:** Multiple `BlockchainEventListener` implementations MUST be registerable without source modification.
 
@@ -199,6 +219,7 @@ BlockchainNode  ← blockchain-core  (REQUIRED)
 ### 3.11 Configuration
 
 **FR-CFG-01:** `BlockchainConfig.builder()` MUST be the single assembly point:
+
 ```java
 BlockchainNode node = BlockchainConfig.builder()
     .consensusEngine(new ProofOfAuthorityEngine(authorizedNodes))
@@ -212,7 +233,8 @@ node.start();
 
 **FR-CFG-02:** `BlockchainConfig.builder().build()` with no other calls MUST produce a working in-memory PoW chain.
 
-**FR-CFG-03:** `blockchain-spring` MUST provide `BlockchainAutoConfiguration` reading `privatechain.*` from `application.yml`.
+**FR-CFG-03:** `blockchain-spring` MUST provide `BlockchainAutoConfiguration` reading `privatechain.*` from
+`application.yml`.
 
 ### 3.12 Serialization
 
@@ -237,11 +259,13 @@ node.start();
 | NFR-PERF-05 | Gossip broadcast to 25 peers (LAN)          | < 500 ms                          |
 
 ### 4.2 Reliability
+
 - `NFR-REL-01`: LevelDB/RocksDB MUST be crash-safe; abrupt JVM kill MUST NOT corrupt storage.
 - `NFR-REL-02`: `SyncManager` MUST auto-restore a node to canonical chain after single-node failure.
 - `NFR-REL-03`: `PBFTEngine` MUST tolerate up to f Byzantine nodes where total validators ≥ 3f+1.
 
 ### 4.3 Security
+
 - `NFR-SEC-01`: Private keys MUST NEVER appear in logs, `toString()`, or unencrypted serialization.
 - `NFR-SEC-02`: Signature verification MUST occur before any transaction enters the mempool.
 - `NFR-SEC-03`: Block hashes MUST be recomputed on chain load; mismatch MUST throw `ChainCorruptException`.
@@ -250,17 +274,20 @@ node.start();
 - `NFR-SEC-06`: CI MUST fail on any OWASP Dependency-Check finding with CVSS ≥ 7.0.
 
 ### 4.4 Developer Experience
+
 - `NFR-UX-01`: Every public API method MUST have full Javadoc with `@param`, `@return`, `@throws`.
 - `NFR-UX-02`: A working first example MUST require ≤ 10 lines of code.
 - `NFR-UX-03`: All public exceptions MUST extend `BlockchainException` (unchecked).
 - `NFR-UX-04`: `BlockchainNode.status()` MUST return chain height, mempool size, peer count, last block time.
 
 ### 4.5 Compatibility
+
 - Java 17, 21, and 23 MUST be supported.
 - `blockchain-core` MUST have zero mandatory transitive dependencies.
 - All modules MUST share the same semantic version number per release.
 
 ### 4.6 Quality
+
 - Unit test coverage ≥ 80% (JaCoCo) for `blockchain-core` and `blockchain-crypto`.
 - Every `ConsensusEngine` implementation MUST have an integration test with ≥ 3 nodes.
 - Every SPI implementation MUST pass a Technology Compatibility Kit (TCK) test.

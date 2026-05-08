@@ -24,7 +24,8 @@
     <suppress until="2026-12-31Z">
         <notes>CVE-2026-22733: CloudFoundry-specific auth bypass. Project is not
             deployed on CloudFoundry. Actuator port restricted to internal network.
-            See ticket blockchain-sec-001. Revisit on Spring Boot 4.x upgrade.</notes>
+            See ticket blockchain-sec-001. Revisit on Spring Boot 4.x upgrade.
+        </notes>
         <cve>CVE-2026-22733</cve>
     </suppress>
 
@@ -37,7 +38,8 @@
     <suppress until="2026-06-30Z">
         <notes>CVE-2024-38820 / CVE-2025-22233: DataBinder.setDisallowedFields()
             locale bypass. Project uses constructor binding only; no disallowedFields
-            calls exist in codebase (grep-verified). See blockchain-sec-002.</notes>
+            calls exist in codebase (grep-verified). See blockchain-sec-002.
+        </notes>
         <cve>CVE-2024-38820</cve>
         <cve>CVE-2025-22233</cve>
     </suppress>
@@ -53,7 +55,8 @@
     <suppress until="2026-06-30Z">
         <notes>CVE-2024-31573: XSLT extension RCE in XMLUnit. Test-scope only;
             never in production classpath. Tests use trusted XML only. Upgrade
-            tracked in blockchain-sec-003.</notes>
+            tracked in blockchain-sec-003.
+        </notes>
         <cve>CVE-2024-31573</cve>
     </suppress>
 
@@ -69,7 +72,8 @@
         <notes>CVE-2026-24400: XXE in AssertJ XmlStringPrettyFormatter.
             Test-scope only. No isXmlEqualTo() with untrusted input. Migration
             to XMLUnit in progress — see blockchain-sec-004. Remove this suppression
-            when migration is complete.</notes>
+            when migration is complete.
+        </notes>
         <cve>CVE-2026-24400</cve>
     </suppress>
 
@@ -87,7 +91,8 @@
         <notes>CVE-2025-11226 / CVE-2024-12798: ACE requires Janino on classpath.
             Janino is not a dependency of this project. Logback upgraded to 1.5.25
             which patches both CVEs. Suppression retained to document Janino absence.
-            See blockchain-sec-005.</notes>
+            See blockchain-sec-005.
+        </notes>
         <cve>CVE-2025-11226</cve>
         <cve>CVE-2024-12798</cve>
     </suppress>
@@ -107,7 +112,8 @@
     <suppress until="2026-12-31Z">
         <notes>CVE-2026-22740: WebFlux multipart temp file leak. No 6.x fix available.
             Project uses Spring MVC (blocking), not WebFlux reactive stack.
-            CVE only affects WebFlux multipart. See blockchain-sec-006.</notes>
+            CVE only affects WebFlux multipart. See blockchain-sec-006.
+        </notes>
         <cve>CVE-2026-22740</cve>
     </suppress>
 
@@ -126,7 +132,8 @@
     <suppress until="2026-12-31Z">
         <notes>CVE-2026-22741: Static resource cache poisoning (score 3.1). No 6.x fix.
             Requires EncodedResourceResolver + CachingResourceResolver — not configured
-            in this project. See blockchain-sec-007.</notes>
+            in this project. See blockchain-sec-007.
+        </notes>
         <cve>CVE-2026-22741</cve>
     </suppress>
 

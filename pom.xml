@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
              https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
@@ -69,27 +69,18 @@
         <bouncycastle.version>1.84</bouncycastle.version>
 
         <!-- netty 4.1.110/111.Final → 4.2.11.Final
-             Previous scan (2025-04): bumped to 4.2.10.Final fixing:
-               CVE-2025-58057 (7.5) BrotliDecoder OOM DoS
-               CVE-2025-58056 (7.5) HTTP request smuggling via LF chunk terminator
-               CVE-2026-33870 (7.5) Chunked quoted-string smuggling (http)
-               CVE-2025-24970 (7.5) SslHandler native crash
-               CVE-2025-67735 (6.5) CRLF injection in HttpRequestEncoder
-               CVE-2025-59419 (5.3) SMTP command injection in SMTP codec
-             New scan (2025): bumped to 4.2.11.Final additionally fixing:
-               CVE-2026-33871 (7.5) HTTP/2 CONTINUATION frame DoS flood —
-                 codec-http2 requires 4.2.11.Final specifically -->
+             CVE-2025-58057 (7.5) BrotliDecoder OOM DoS
+             CVE-2025-58056 (7.5) HTTP request smuggling
+             CVE-2026-33870 (7.5) Chunked quoted-string smuggling
+             CVE-2025-24970 (7.5) SslHandler native crash
+             CVE-2026-33871 (7.5) HTTP/2 CONTINUATION frame DoS flood -->
         <netty.version>4.2.11.Final</netty.version>
 
         <!-- Tomcat versions — explicit pin overriding Spring Boot BOM.
-             Spring Boot BOM provides tomcat but may lag behind security patches.
-             New scan (2025): tomcat-embed-core:10.1.52 is vulnerable.
-               CVE-2026-29145 (9.1) CLIENT_CERT auth bypass with soft-fail disabled
-               CVE-2026-29129 (7.5) TLS cipher preference order not preserved
-               CVE-2026-29146 (7.5) Padding Oracle in EncryptInterceptor
-               CVE-2026-34483 (7.5) JSON injection in JsonAccessLogValve
-               CVE-2026-25854 (6.1) Open redirect via LoadBalancerDrainingValve
-               CVE-2026-32990 (5.3) Input validation bypass (incomplete CVE-2025-66614 fix)
+             CVE-2026-29145 (9.1) CLIENT_CERT auth bypass
+             CVE-2026-29129 (7.5) TLS cipher preference order not preserved
+             CVE-2026-29146 (7.5) Padding Oracle in EncryptInterceptor
+             CVE-2026-34483 (7.5) JSON injection in JsonAccessLogValve
              Fix: 10.1.54+ (stays on 10.x branch matching Spring Boot 3.x) -->
         <tomcat.version>10.1.54</tomcat.version>
 
@@ -101,12 +92,10 @@
         <leveldb.version>1.8</leveldb.version>
         <rocksdb.version>9.2.1</rocksdb.version>
 
-        <!-- spring-boot 3.3.0 → 3.5.12
+        <!-- spring-boot 3.3.0 → 4.0.6
              CVE-2026-22733 (8.2) Auth bypass via CloudFoundry Actuator path conflict
-             CVE-2025-22235 (7.3) EndpointRequest.to() null/** matcher for disabled endpoints
-             Note: spring-boot-actuator 4.0.4 requires Spring Boot 4.x — staying on 3.x
-             branch with the latest 3.x patch that addresses CVE-2025-22235 -->
-        <spring.boot.version>3.5.12</spring.boot.version>
+             CVE-2025-22235 (7.3) EndpointRequest.to() null/** matcher for disabled endpoints -->
+        <spring.boot.version>4.0.6</spring.boot.version>
         <spring.webmvc.version>7.0.7</spring.webmvc.version>
         <spring.web.version>7.0.7</spring.web.version>
 
@@ -126,15 +115,18 @@
         <maven.failsafe.version>3.3.0</maven.failsafe.version>
         <jacoco.version>0.8.12</jacoco.version>
         <checkstyle.version>3.4.0</checkstyle.version>
-        <owasp.version>9.2.0</owasp.version>
-        <!-- protoc-jar-maven-plugin: com.github.os72 group, version 3.11.4
-             (NOT 0.6.1 — that version does not exist on Maven Central;
-              0.6.1 belongs to org.xolstice.maven.plugins:protobuf-maven-plugin,
-              a completely different artifact)
-             Maven Central: https://repo.maven.apache.org/maven2/com/github/os72/protoc-jar-maven-plugin/3.11.4/ -->
+
+        <!-- ═══════════════════════════════════════════════════════════
+             OWASP Dependency-Check 9.2.0 → 12.2.2
+             Root cause of 403 errors: version 9.x used the legacy NVD
+             data-feed client which was deprecated and now returns 403/404.
+             Version 12.x ships the correct NVD API v2 client and properly
+             handles the rate-limiting and authentication handshake.
+             Reference: https://github.com/dependency-check/DependencyCheck
+             ═══════════════════════════════════════════════════════════ -->
+        <owasp.version>12.2.2</owasp.version>
+
         <protobuf.plugin.version>3.11.4</protobuf.plugin.version>
-        <!-- os-maven-plugin: detects OS/arch classifier for native protoc binary download
-             Required by org.xolstice approach; not needed by com.github.os72 approach -->
         <os.maven.plugin.version>1.7.1</os.maven.plugin.version>
         <gpg.plugin.version>3.2.4</gpg.plugin.version>
         <nexus.staging.version>1.7.0</nexus.staging.version>
@@ -259,9 +251,7 @@
 
             <!-- ═══════════════════════════════════════════════════════════
                  TOMCAT — explicit overrides to outpace Spring Boot BOM.
-                 New scan (2025): tomcat-embed-core:10.1.52 flagged.
                  Fix version: 10.1.54 (10.x branch, compatible with SB 3.x)
-                 Controlled by <tomcat.version> property above.
                  ═══════════════════════════════════════════════════════════ -->
             <dependency>
                 <groupId>org.apache.tomcat.embed</groupId>
@@ -299,8 +289,7 @@
             </dependency>
 
             <!-- json-smart: force upgrade over BOM default
-                 CVE-2024-57699 (7.5) Stack exhaustion via deeply nested JSON.
-                 Spring Boot BOM may pull 2.5.1 — we force 2.5.2. -->
+                 CVE-2024-57699 (7.5) Stack exhaustion via deeply nested JSON. -->
             <dependency>
                 <groupId>net.minidev</groupId>
                 <artifactId>json-smart</artifactId>
@@ -308,8 +297,7 @@
             </dependency>
 
             <!-- xmlunit-core: force upgrade over test BOM default
-                 CVE-2024-31573 (4.0) XSLT extension RCE (test-scope only).
-                 See owasp-suppressions.xml blockchain-sec-003. -->
+                 CVE-2024-31573 (4.0) XSLT extension RCE (test-scope only). -->
             <dependency>
                 <groupId>org.xmlunit</groupId>
                 <artifactId>xmlunit-core</artifactId>
@@ -318,13 +306,24 @@
             </dependency>
 
             <!-- assertj-core: force upgrade
-                 CVE-2026-24400 (7.3) XXE in XmlStringPrettyFormatter (test-scope).
-                 See owasp-suppressions.xml blockchain-sec-004. -->
+                 CVE-2026-24400 (7.3) XXE in XmlStringPrettyFormatter (test-scope). -->
             <dependency>
                 <groupId>org.assertj</groupId>
                 <artifactId>assertj-core</artifactId>
                 <version>3.27.7</version>
                 <scope>test</scope>
+            </dependency>
+
+            <!-- SpotBugs annotations — compile-time only (@SuppressFBWarnings).
+                 Used by blockchain-core and any module that needs to suppress
+                 false-positive SpotBugs findings with documented justification.
+                 provided scope: zero runtime footprint for consumers.           -->
+            <dependency>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-annotations</artifactId>
+                <!-- Version aligned with spotbugs-maven-plugin 4.8.3.1 -->
+                <version>4.8.3</version>
+                <scope>provided</scope>
             </dependency>
 
             <!-- Testing -->
@@ -434,16 +433,22 @@
                     <executions>
                         <execution>
                             <id>prepare-agent</id>
-                            <goals><goal>prepare-agent</goal></goals>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
                         </execution>
                         <execution>
                             <id>report</id>
                             <phase>verify</phase>
-                            <goals><goal>report</goal></goals>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
                         </execution>
                         <execution>
                             <id>check</id>
-                            <goals><goal>check</goal></goals>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
                             <configuration>
                                 <rules>
                                     <rule>
@@ -481,23 +486,55 @@
                         <execution>
                             <id>checkstyle</id>
                             <phase>validate</phase>
-                            <goals><goal>check</goal></goals>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
                         </execution>
                     </executions>
                 </plugin>
 
-                <!-- Security scan -->
+                <!-- ═══════════════════════════════════════════════════════════
+                     OWASP Dependency-Check — Security scan (on-demand only).
+                     Activated via: mvn -Psecurity verify
+
+                     NVD API Key configuration (in priority order):
+                       1. Environment variable NVD_API_KEY  (preferred in CI)
+                       2. Maven property ${nvdApiKey} from settings.xml profile
+                          (your ~/.m2/settings.xml profile id=nvd-identity already
+                           sets this via <nvdApiKey>your-key</nvdApiKey>)
+
+                     Why 12.2.2 (was 9.2.0):
+                       v9.x shipped the legacy NVD data-feed client which NIST
+                       decommissioned. v12.x uses the correct NVD API v2 client
+                       that honors the API key and rate-limit headers properly.
+
+                     nvdApiDelay 2000ms:
+                       With a valid API key the NVD allows 50 requests per 30s.
+                       2 seconds between calls stays safely under the limit.
+                       (Old value of 16000ms would make a full DB download take
+                       many hours unnecessarily.)
+                     ═══════════════════════════════════════════════════════════ -->
                 <plugin>
                     <groupId>org.owasp</groupId>
                     <artifactId>dependency-check-maven</artifactId>
                     <version>${owasp.version}</version>
                     <configuration>
+                        <!-- Fail the build if any dependency has CVSS >= 7.0 (NFR-SEC-06) -->
                         <failBuildOnCVSS>7</failBuildOnCVSS>
                         <suppressionFiles>
                             <suppressionFile>owasp-suppressions.xml</suppressionFile>
                         </suppressionFiles>
-                      <nvdApiKey>${nvdApiKey}</nvdApiKey>
-                      <nvdApiDelay>16000</nvdApiDelay>
+                        <!-- Priority 1: CI environment variable (recommended for pipelines) -->
+                        <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                        <!-- Priority 2: Maven property from settings.xml (local development).
+                             Your ~/.m2/settings.xml profile already sets ${nvdApiKey}. -->
+                        <nvdApiKey>${nvdApiKey}</nvdApiKey>
+                        <!-- 2 seconds between NVD API calls — safe with a valid key -->
+                        <nvdApiDelay>2000</nvdApiDelay>
+                        <!-- Skip test-scoped and provided-scoped deps from scan
+                             (reduces noise from compile-only annotation libs) -->
+                        <skipTestScope>false</skipTestScope>
+                        <skipProvidedScope>false</skipProvidedScope>
                     </configuration>
                 </plugin>
 
@@ -513,7 +550,9 @@
                     <executions>
                         <execution>
                             <id>attach-javadocs</id>
-                            <goals><goal>jar</goal></goals>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
                         </execution>
                     </executions>
                 </plugin>
@@ -526,7 +565,9 @@
                     <executions>
                         <execution>
                             <id>attach-sources</id>
-                            <goals><goal>jar-no-fork</goal></goals>
+                            <goals>
+                                <goal>jar-no-fork</goal>
+                            </goals>
                         </execution>
                     </executions>
                 </plugin>
@@ -540,7 +581,9 @@
                         <execution>
                             <id>sign-artifacts</id>
                             <phase>verify</phase>
-                            <goals><goal>sign</goal></goals>
+                            <goals>
+                                <goal>sign</goal>
+                            </goals>
                         </execution>
                     </executions>
                 </plugin>
@@ -579,10 +622,13 @@
                         <execution>
                             <id>spotbugs</id>
                             <phase>verify</phase>
-                            <goals><goal>check</goal></goals>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
                         </execution>
                     </executions>
                 </plugin>
+
             </plugins>
         </pluginManagement>
 
@@ -635,7 +681,22 @@
             </build>
         </profile>
 
-        <!-- Security scan profile: run OWASP check on demand -->
+        <!-- ═══════════════════════════════════════════════════════════
+             Security scan profile — run on demand: mvn -Psecurity verify
+
+             This profile activates the OWASP Dependency-Check aggregate
+             goal. All plugin configuration (API key, delay, CVSS threshold,
+             suppression file) is inherited from pluginManagement above —
+             no duplication needed here.
+
+             Local dev  : mvn -Psecurity verify
+                          (picks up ${nvdApiKey} from ~/.m2/settings.xml)
+             CI pipeline: NVD_API_KEY=xxx mvn -Psecurity verify
+                          (picks up NVD_API_KEY env var, takes precedence)
+
+             First-time run: the NVD database download takes 10–20 minutes.
+             Subsequent runs (within 7 days): only incremental updates, ~30s.
+             ═══════════════════════════════════════════════════════════ -->
         <profile>
             <id>security</id>
             <build>
@@ -643,15 +704,19 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
+                        <!-- No <configuration> block here — all settings are
+                             inherited from pluginManagement. Duplicating config
+                             here would silently override failBuildOnCVSS and
+                             suppressionFiles, weakening the security gate. -->
                         <executions>
                             <execution>
-                                <goals><goal>aggregate</goal></goals>
+                                <id>owasp-aggregate</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>aggregate</goal>
+                                </goals>
                             </execution>
                         </executions>
-                      <configuration>
-                        <nvdApiKey>${nvdApiKey}</nvdApiKey>
-                        <nvdApiDelay>16000</nvdApiDelay>
-                      </configuration>
                     </plugin>
                 </plugins>
             </build>

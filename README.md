@@ -203,29 +203,29 @@ private-blockchain/
 
 ## Module dependency summary
 
-| Module | Depends on | Key external dep |
-|---|---|---|
-| `blockchain-core` | JDK only | — |
-| `blockchain-crypto` | `blockchain-core` | Bouncy Castle |
-| `blockchain-consensus` | `blockchain-core`, `blockchain-crypto` | — |
-| `blockchain-storage` | `blockchain-core` | LevelDB JNI, RocksDB JNI |
-| `blockchain-wallet` | `blockchain-core`, `blockchain-crypto` | — |
-| `blockchain-mempool` | `blockchain-core` | — |
-| `blockchain-access` | `blockchain-core`, `blockchain-crypto` | — |
-| `blockchain-network` | `blockchain-core`, `blockchain-crypto`, `blockchain-access` | Netty 4.x |
-| `blockchain-spring` | all above | Spring Boot 3.x |
-| `blockchain-examples` | all above | — |
+| Module                 | Depends on                                                  | Key external dep         |
+|------------------------|-------------------------------------------------------------|--------------------------|
+| `blockchain-core`      | JDK only                                                    | —                        |
+| `blockchain-crypto`    | `blockchain-core`                                           | Bouncy Castle            |
+| `blockchain-consensus` | `blockchain-core`, `blockchain-crypto`                      | —                        |
+| `blockchain-storage`   | `blockchain-core`                                           | LevelDB JNI, RocksDB JNI |
+| `blockchain-wallet`    | `blockchain-core`, `blockchain-crypto`                      | —                        |
+| `blockchain-mempool`   | `blockchain-core`                                           | —                        |
+| `blockchain-access`    | `blockchain-core`, `blockchain-crypto`                      | —                        |
+| `blockchain-network`   | `blockchain-core`, `blockchain-crypto`, `blockchain-access` | Netty 4.x                |
+| `blockchain-spring`    | all above                                                   | Spring Boot 3.x          |
+| `blockchain-examples`  | all above                                                   | —                        |
 
 ---
 
 ## Documentation
 
-| Document | Location | Description |
-|---|---|---|
-| Requirements | `docs/requirements.md` | Functional and non-functional requirements (FR-01 … NFR-10) |
-| Tasks | `docs/tasks.md` | Milestone plan, task IDs (T-001 … T-081), priorities |
-| Design | `docs/design.md` | Architecture, data-flow, and class diagrams |
-| ADR-001 | `docs/decisions/ADR-001-transport.md` | Transport layer decision (TCP vs gRPC) |
+| Document     | Location                              | Description                                                 |
+|--------------|---------------------------------------|-------------------------------------------------------------|
+| Requirements | `docs/requirements.md`                | Functional and non-functional requirements (FR-01 … NFR-10) |
+| Tasks        | `docs/tasks.md`                       | Milestone plan, task IDs (T-001 … T-081), priorities        |
+| Design       | `docs/design.md`                      | Architecture, data-flow, and class diagrams                 |
+| ADR-001      | `docs/decisions/ADR-001-transport.md` | Transport layer decision (TCP vs gRPC)                      |
 
 ---
 
