@@ -1,5 +1,6 @@
 name: Build & Test
 
+# ─── Triggers ────────────────────────────────────────────────────────────────
 on:
     push:
         branches: [ main, develop ]
@@ -9,7 +10,13 @@ on:
 jobs:
     build:
         runs-on: ubuntu-latest
+
+        # ── JDK matrix ───────────────────────────────────────────────────────
+        # Tests on JDK 17 (minimum supported per NFR-COMPAT) and JDK 21 (LTS).
+        # The root pom.xml sets <java.version>17</java.version> so --release 17
+        # is passed to javac — valid on both JDK 17 and JDK 21 runners.
         strategy:
+            fail-fast: false          # let both matrix legs complete even if one fails
             matrix:
                 java-version: [ '17', '21' ]
 
@@ -26,7 +33,16 @@ jobs:
             -   name: Build and test
                 run: mvn -B clean verify
 
+            # ── Coverage upload ───────────────────────────────────────────────
+            # JaCoCo writes one report per module:
+            #   blockchain-core/target/site/jacoco/jacoco.xml
+            #   blockchain-crypto/target/site/jacoco/jacoco.xml  (Milestone 2+)
+            #   etc.
+            # The glob '**/target/site/jacoco/jacoco.xml' captures all of them.
+            # Only upload on the JDK 21 leg to avoid duplicate reports.
             -   name: Upload coverage to Codecov
-                uses: codecov/codecov-action@v3
+                if: matrix.java-version == '21'
+                uses: codecov/codecov-action@v4
                 with:
-                    files: ./target/site/jacoco/jacoco.xml
+                    files: '**/target/site/jacoco/jacoco.xml'
+                    fail_ci_if_error: false   # coverage upload failure must not break the build

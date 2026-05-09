@@ -4,12 +4,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Abstract base class for all blockchain transactions.
@@ -49,30 +44,6 @@ public abstract class Transaction {
 
     // ─── Core fields (present on every transaction) ────────────────────────
 
-    /** Globally unique identifier for this transaction. */
-    private final UUID id;
-
-    /** Blockchain address of the sender (hex-encoded public-key hash). */
-    private final String senderAddress;
-
-    /** Blockchain address of the receiver (hex-encoded public-key hash). */
-    private final String receiverAddress;
-
-    /**
-     * Token/coin amount transferred. Use {@link BigDecimal} to avoid floating-point
-     * rounding errors when dealing with financial values.
-     */
-    private final BigDecimal amount;
-
-    /** UTC instant at which the transaction was created by the client. */
-    private final Instant timestamp;
-
-    /**
-     * ECDSA secp256k1 signature bytes produced by the sender's private key over
-     * {@link #toSignableBytes()}.  {@code null} until {@link #sign} is called.
-     */
-    private byte[] signature;
-
     /**
      * Flexible key-value map for lightweight extension.
      *
@@ -84,6 +55,32 @@ public abstract class Transaction {
      * but the underlying map may be mutated before {@link #sign} is called.</p>
      */
     protected final Map<String, Object> metadata;
+    /**
+     * Globally unique identifier for this transaction.
+     */
+    private final UUID id;
+    /**
+     * Blockchain address of the sender (hex-encoded public-key hash).
+     */
+    private final String senderAddress;
+    /**
+     * Blockchain address of the receiver (hex-encoded public-key hash).
+     */
+    private final String receiverAddress;
+    /**
+     * Token/coin amount transferred. Use {@link BigDecimal} to avoid floating-point
+     * rounding errors when dealing with financial values.
+     */
+    private final BigDecimal amount;
+    /**
+     * UTC instant at which the transaction was created by the client.
+     */
+    private final Instant timestamp;
+    /**
+     * ECDSA secp256k1 signature bytes produced by the sender's private key over
+     * {@link #toSignableBytes()}.  {@code null} until {@link #sign} is called.
+     */
+    private byte[] signature;
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
@@ -138,6 +135,23 @@ public abstract class Transaction {
     // ─── Signing ──────────────────────────────────────────────────────────────
 
     /**
+     * Validates that a string field is neither null nor blank.
+     *
+     * @param value     the value to check
+     * @param fieldName used in the exception message
+     * @return the validated value
+     * @throws NullPointerException     if value is null
+     * @throws IllegalArgumentException if value is blank
+     */
+    private static String requireNonBlank(String value, String fieldName) {
+        Objects.requireNonNull(value, fieldName + " must not be null");
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be blank");
+        }
+        return value;
+    }
+
+    /**
      * Attaches the ECDSA signature to this transaction.
      *
      * <p>This method is intentionally not {@code final} so that subclasses can
@@ -162,6 +176,8 @@ public abstract class Transaction {
         this.signature = Arrays.copyOf(signatureBytes, signatureBytes.length);
     }
 
+    // ─── Accessors ────────────────────────────────────────────────────────────
+
     /**
      * Returns the byte array that the sender MUST sign and verifiers MUST verify.
      *
@@ -180,8 +196,6 @@ public abstract class Transaction {
             + "|" + timestamp.toString();
         return canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
-
-    // ─── Accessors ────────────────────────────────────────────────────────────
 
     /**
      * Returns the unique identifier of this transaction.
@@ -248,6 +262,8 @@ public abstract class Transaction {
         return signature != null && signature.length > 0;
     }
 
+    // ─── Object overrides ─────────────────────────────────────────────────────
+
     /**
      * Returns an unmodifiable view of the transaction metadata map.
      *
@@ -267,8 +283,6 @@ public abstract class Transaction {
     public Map<String, Object> getMetadata() {
         return metadata;
     }
-
-    // ─── Object overrides ─────────────────────────────────────────────────────
 
     /**
      * Two transactions are equal if and only if their IDs are equal.
@@ -297,6 +311,8 @@ public abstract class Transaction {
         return Objects.hash(id);
     }
 
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
     /**
      * Returns a human-readable summary of the transaction (safe for logging).
      *
@@ -314,24 +330,5 @@ public abstract class Transaction {
             + ", timestamp=" + timestamp
             + ", signed=" + isSigned()
             + '}';
-    }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────
-
-    /**
-     * Validates that a string field is neither null nor blank.
-     *
-     * @param value     the value to check
-     * @param fieldName used in the exception message
-     * @return the validated value
-     * @throws NullPointerException     if value is null
-     * @throws IllegalArgumentException if value is blank
-     */
-    private static String requireNonBlank(String value, String fieldName) {
-        Objects.requireNonNull(value, fieldName + " must not be null");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " must not be blank");
-        }
-        return value;
     }
 }

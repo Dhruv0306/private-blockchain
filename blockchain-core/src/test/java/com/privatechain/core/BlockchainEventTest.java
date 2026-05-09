@@ -227,31 +227,72 @@ class BlockchainEventTest {
         assertTrue(str.contains(blockB.getHash()), "toString should include blockB hash");
     }
 
-    // ─── Sealed type switch exhaustiveness ───────────────────────────────────
+    // ─── Event type identity (Java 17 compatible) ────────────────────────────
 
     @Test
-    @DisplayName("sealed switch can handle all event types without default")
-    void sealedSwitchIsExhaustive() {
-        BlockchainEvent[] events = {
-            new BlockAddedEvent(sampleBlock(0)),
-            new TransactionSubmittedEvent(sampleTransaction()),
-            new PeerConnectedEvent("n1", "host:1234"),
-            new PeerDisconnectedEvent("n2", null),
-            new ForkDetectedEvent(sampleBlock(0), sampleBlock(1))
-        };
+    @DisplayName("BlockAddedEvent is the correct runtime type and exposes block")
+    void blockAddedEventTypeCheck() {
+        BlockchainEvent event = new BlockAddedEvent(sampleBlock(5));
+        assertInstanceOf(BlockAddedEvent.class, event, "event must be an instance of BlockAddedEvent");
+        BlockAddedEvent typed = (BlockAddedEvent) event;
+        assertEquals(5, typed.getBlock().getIndex());
+    }
 
-        for (BlockchainEvent event : events) {
-            // This switch is exhaustive — if a new subclass is added without
-            // updating this test, it will fail to compile (good!)
-            String result = switch (event) {
-                case BlockAddedEvent e -> "block:" + e.getBlock().getIndex();
-                case TransactionSubmittedEvent e -> "tx:" + e.getTransaction().getId();
-                case PeerConnectedEvent e -> "connected:" + e.getPeerId();
-                case PeerDisconnectedEvent e -> "disconnected:" + e.getPeerId();
-                case ForkDetectedEvent e -> "fork";
-            };
-            assertNotNull(result, "switch must produce a result for every event type");
-        }
+    @Test
+    @DisplayName("TransactionSubmittedEvent is the correct runtime type and exposes tx")
+    void transactionSubmittedEventTypeCheck() {
+        Transaction tx = sampleTransaction();
+        BlockchainEvent event = new TransactionSubmittedEvent(tx);
+        assertInstanceOf(TransactionSubmittedEvent.class, event, "event must be an instance of TransactionSubmittedEvent");
+        TransactionSubmittedEvent typed = (TransactionSubmittedEvent) event;
+        assertEquals(tx.getId(), typed.getTransaction().getId());
+    }
+
+    @Test
+    @DisplayName("PeerConnectedEvent is the correct runtime type and exposes peerId")
+    void peerConnectedEventTypeCheck() {
+        BlockchainEvent event = new PeerConnectedEvent("node-42", "10.0.0.1:8545");
+        assertInstanceOf(PeerConnectedEvent.class, event, "event must be an instance of PeerConnectedEvent");
+        PeerConnectedEvent typed = (PeerConnectedEvent) event;
+        assertEquals("node-42", typed.getPeerId());
+    }
+
+    @Test
+    @DisplayName("PeerDisconnectedEvent is the correct runtime type and exposes peerId")
+    void peerDisconnectedEventTypeCheck() {
+        BlockchainEvent event = new PeerDisconnectedEvent("node-7", "timeout");
+        assertInstanceOf(PeerDisconnectedEvent.class, event, "event must be an instance of PeerDisconnectedEvent");
+        PeerDisconnectedEvent typed = (PeerDisconnectedEvent) event;
+        assertEquals("node-7", typed.getPeerId());
+    }
+
+    @Test
+    @DisplayName("ForkDetectedEvent is the correct runtime type and exposes both blocks")
+    void forkDetectedEventTypeCheck() {
+        Block a = sampleBlock(3);
+        Block b = sampleBlock(4);
+        BlockchainEvent event = new ForkDetectedEvent(a, b);
+        assertInstanceOf(ForkDetectedEvent.class, event, "event must be an instance of ForkDetectedEvent");
+        ForkDetectedEvent typed = (ForkDetectedEvent) event;
+        assertEquals(a, typed.getBlockA());
+        assertEquals(b, typed.getBlockB());
+    }
+
+    @Test
+    @DisplayName("all five event types are distinct — no event is an instance of a sibling type")
+    void eventTypesAreDistinct() {
+        BlockchainEvent blockAdded = new BlockAddedEvent(sampleBlock(0));
+        BlockchainEvent txSubmitted = new TransactionSubmittedEvent(sampleTransaction());
+        BlockchainEvent peerConn = new PeerConnectedEvent("n1", "host:1234");
+        BlockchainEvent peerDisc = new PeerDisconnectedEvent("n2", null);
+        BlockchainEvent fork = new ForkDetectedEvent(sampleBlock(0), sampleBlock(1));
+
+        assertFalse(blockAdded instanceof TransactionSubmittedEvent);
+        assertFalse(blockAdded instanceof PeerConnectedEvent);
+        assertFalse(txSubmitted instanceof BlockAddedEvent);
+        assertFalse(peerConn instanceof PeerDisconnectedEvent);
+        assertFalse(peerDisc instanceof ForkDetectedEvent);
+        assertFalse(fork instanceof BlockAddedEvent);
     }
 
     // ─── occurredAt is set ────────────────────────────────────────────────────
@@ -263,9 +304,7 @@ class BlockchainEventTest {
         BlockAddedEvent event = new BlockAddedEvent(sampleBlock(0));
         Instant after = Instant.now().plusSeconds(1);
 
-        assertTrue(!event.getOccurredAt().isBefore(before),
-            "occurredAt must not be before event construction");
-        assertTrue(!event.getOccurredAt().isAfter(after),
-            "occurredAt must not be after event construction");
+        assertFalse(event.getOccurredAt().isBefore(before), "occurredAt must not be before event construction");
+        assertFalse(event.getOccurredAt().isAfter(after), "occurredAt must not be after event construction");
     }
 }

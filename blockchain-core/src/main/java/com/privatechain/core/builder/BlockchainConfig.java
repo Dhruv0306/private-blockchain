@@ -217,14 +217,14 @@ public final class BlockchainConfig {
      */
     public static final class Builder {
 
+        private final List<TransactionValidator> transactionValidators = new ArrayList<>();
+        private final List<BlockchainEventListener> eventListeners = new ArrayList<>();
         // Defaults: in-memory no-op consensus and no-op storage are set here as nulls
         // and replaced by real defaults during build() to avoid circular dependencies
         // with the consensus/storage modules that blockchain-core must not depend on.
         private ConsensusEngine consensusEngine;
-        private final List<TransactionValidator> transactionValidators = new ArrayList<>();
         private BlockchainStorage storage;
         private BlockchainEventBus eventBus = new BlockchainEventBus();
-        private final List<BlockchainEventListener> eventListeners = new ArrayList<>();
         private TransactionPrioritizer transactionPrioritizer;
 
         // Tunable parameters with sensible defaults
@@ -234,8 +234,11 @@ public final class BlockchainConfig {
         private int maxPeers = 25;
         private String chainId = "private-blockchain";
 
-        /** Package-private constructor — use {@link BlockchainConfig#builder()}. */
-        Builder() { }
+        /**
+         * Package-private constructor — use {@link BlockchainConfig#builder()}.
+         */
+        Builder() {
+        }
 
         /**
          * Sets the consensus engine.
@@ -496,7 +499,7 @@ public final class BlockchainConfig {
         /**
          * Creates a new block with the given transactions without any mining.
          *
-         * @param transactions transactions to include
+         * @param transactions  transactions to include
          * @param previousBlock the current chain tip
          * @return a new block linked to {@code previousBlock}
          */
@@ -541,6 +544,24 @@ public final class BlockchainConfig {
             new java.util.LinkedHashMap<>();
         private final java.util.concurrent.locks.ReadWriteLock lock =
             new java.util.concurrent.locks.ReentrantReadWriteLock();
+
+        /**
+         * Compares two hex-encoded hash strings in constant time to prevent
+         * timing side-channel attacks (NFR-SEC-03).
+         *
+         * <p>Uses {@link java.security.MessageDigest#isEqual(byte[], byte[])} which
+         * is guaranteed by the JDK to run in time proportional to the length of the
+         * arrays rather than the position of the first differing byte.</p>
+         *
+         * @param a first hash hex string
+         * @param b second hash hex string
+         * @return {@code true} if both strings represent the same hash value
+         */
+        private static boolean constantTimeHashEquals(String a, String b) {
+            return java.security.MessageDigest.isEqual(
+                a.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                b.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
 
         /**
          * Saves a block to the in-memory store.
@@ -627,24 +648,6 @@ public final class BlockchainConfig {
             } finally {
                 lock.readLock().unlock();
             }
-        }
-
-        /**
-         * Compares two hex-encoded hash strings in constant time to prevent
-         * timing side-channel attacks (NFR-SEC-03).
-         *
-         * <p>Uses {@link java.security.MessageDigest#isEqual(byte[], byte[])} which
-         * is guaranteed by the JDK to run in time proportional to the length of the
-         * arrays rather than the position of the first differing byte.</p>
-         *
-         * @param a first hash hex string
-         * @param b second hash hex string
-         * @return {@code true} if both strings represent the same hash value
-         */
-        private static boolean constantTimeHashEquals(String a, String b) {
-            return java.security.MessageDigest.isEqual(
-                a.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                b.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
 
         /**

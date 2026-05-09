@@ -1,11 +1,11 @@
 package com.privatechain.core.builder;
 
 import com.privatechain.core.event.BlockchainEventBus;
+import com.privatechain.core.exception.TransactionValidationException;
 import com.privatechain.core.model.Block;
 import com.privatechain.core.model.Transaction;
 import com.privatechain.core.spi.TransactionValidator;
 import com.privatechain.core.spi.ValidationResult;
-import com.privatechain.core.exception.TransactionValidationException;
 
 import java.time.Instant;
 import java.util.List;
@@ -53,7 +53,9 @@ public final class BlockchainNode {
 
     // ─── Lifecycle state ──────────────────────────────────────────────────────
 
-    /** Guards against double-start or operations before start(). */
+    /**
+     * Guards against double-start or operations before start().
+     */
     private final AtomicBoolean started = new AtomicBoolean(false);
 
     // ─── Constructor ──────────────────────────────────────────────────────────
@@ -151,9 +153,9 @@ public final class BlockchainNode {
      * accepted into the mempool (full mempool is implemented in Milestone 5).</p>
      *
      * @param transaction the transaction to submit (non-null)
-     * @throws NullPointerException              if transaction is null
-     * @throws TransactionValidationException    if any validator rejects the transaction
-     * @throws IllegalStateException             if the node has not been started
+     * @throws NullPointerException           if transaction is null
+     * @throws TransactionValidationException if any validator rejects the transaction
+     * @throws IllegalStateException          if the node has not been started
      */
     public void submitTransaction(Transaction transaction) {
         requireStarted();
@@ -244,11 +246,11 @@ public final class BlockchainNode {
      * <p>Returned by {@link BlockchainNode#status()} and exposed via the REST/Spring
      * integration in later milestones.</p>
      *
-     * @param chainHeight      number of blocks in the chain
-     * @param mempoolSize      number of unconfirmed transactions in the mempool
-     * @param peerCount        number of currently connected peers
-     * @param lastBlockTime    timestamp of the most recently added block, or null if none
-     * @param consensusEngine  human-readable name of the active consensus engine
+     * @param chainHeight     number of blocks in the chain
+     * @param mempoolSize     number of unconfirmed transactions in the mempool
+     * @param peerCount       number of currently connected peers
+     * @param lastBlockTime   timestamp of the most recently added block, or null if none
+     * @param consensusEngine human-readable name of the active consensus engine
      * @since 1.0.0
      */
     public record NodeStatus(
@@ -256,5 +258,6 @@ public final class BlockchainNode {
         int mempoolSize,
         int peerCount,
         Instant lastBlockTime,
-        String consensusEngine) { }
+        String consensusEngine) {
+    }
 }

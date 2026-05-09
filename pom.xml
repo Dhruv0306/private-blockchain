@@ -45,9 +45,16 @@
 
     <!-- ─── Global properties ─────────────────────────────── -->
     <properties>
-        <java.version>21</java.version>
-        <maven.compiler.source>${java.version}</maven.compiler.source>
-        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <!--
+             Java version: uses maven.compiler.release (javac -release flag).
+             This replaces the legacy source+target pair which emits a
+             "system modules path not set" warning on JDK 21 when targeting
+             JDK 17. With -Werror active that warning fails the build.
+             The -release flag locks both bytecode version AND bootclasspath
+             to JDK 17, suppressing the warning on any JDK 17+ runner.
+        -->
+        <java.version>17</java.version>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
@@ -388,8 +395,7 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.13.0</version>
                     <configuration>
-                        <source>${java.version}</source>
-                        <target>${java.version}</target>
+                        <release>${java.version}</release>
                         <compilerArgs>
                             <arg>-Xlint:all</arg>
                             <arg>-Werror</arg>

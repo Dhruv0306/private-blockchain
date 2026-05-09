@@ -25,21 +25,18 @@ import java.util.Objects;
  *
  * <h2>Handling events</h2>
  * <pre>{@code
- * eventBus.register(event -> switch (event) {
- *     case BlockAddedEvent e -> log.info("Block #{} added", e.block().getIndex());
- *     case TransactionSubmittedEvent e -> metricsCounter.increment();
- *     default -> { }
+ * eventBus.register(event -> {
+ *     if (event instanceof BlockchainEvent.BlockAddedEvent e) {
+ *         log.info("Block #{} added", e.getBlock().getIndex());
+ *     } else if (event instanceof BlockchainEvent.TransactionSubmittedEvent e) {
+ *         metricsCounter.increment();
+ *     }
  * });
  * }</pre>
  *
  * @since 1.0.0
  */
-public abstract sealed class BlockchainEvent
-    permits BlockchainEvent.BlockAddedEvent,
-    BlockchainEvent.TransactionSubmittedEvent,
-    BlockchainEvent.PeerConnectedEvent,
-    BlockchainEvent.PeerDisconnectedEvent,
-    BlockchainEvent.ForkDetectedEvent {
+public abstract sealed class BlockchainEvent permits BlockchainEvent.BlockAddedEvent, BlockchainEvent.TransactionSubmittedEvent, BlockchainEvent.PeerConnectedEvent, BlockchainEvent.PeerDisconnectedEvent, BlockchainEvent.ForkDetectedEvent {
 
     /**
      * UTC instant at which the event was created.
