@@ -5,187 +5,256 @@ private-blockchain/
 │
 ├── .github/
 │   ├── workflows/
-│   │   ├── ci.yml                          # Build, test, lint on every PR
-│   │   ├── release.yml                     # Publish to Maven Central on tag
-│   │   └── dependency-check.yml            # OWASP dependency vulnerability scan
+│   │   ├── build.yml                    # Compiles, tests, and lints on every push and pull request
+│   │   ├── release.yml                  # Publishes artifacts to Maven Central on a version tag
+│   │   └── qodana_code_quality.yml      # Runs JetBrains Qodana static analysis
 │   └── ISSUE_TEMPLATE/
-│       ├── bug_report.md
-│       └── feature_request.md
+│       ├── bug_report.yml               # Structured form for reporting bugs
+│       └── feature_request.yml          # Structured form for proposing new features
 │
 ├── docs/
-│   ├── requirements.md                     # Functional & non-functional requirements
-│   ├── design.md                           # Architecture, dataflow, class diagrams
-│   ├── tasks.md                            # Development task breakdown
-│   ├── CONTRIBUTING.md                     # How to contribute
-│   └── adr/                                # Architecture Decision Records
-│       ├── ADR-001-multimodule-maven.md
-│       ├── ADR-002-spi-extension-model.md
-│       ├── ADR-003-storage-abstraction.md
-│       └── ADR-004-consensus-interface.md
+│   ├── requirements.md                  # Functional and non-functional requirements
+│   ├── design.md                        # Architecture, data-flow, and class diagrams
+│   ├── tasks.md                         # Milestone breakdown with task IDs and priorities
+│   └── decisions/                       # Architecture Decision Records
+│       └── ADR-001-transport.md         # Transport layer selection rationale
 │
-├── blockchain-core/                        # ← USER DEPENDS ON THIS
+├── blockchain-core/                     # Core library module — zero mandatory runtime dependencies
 │   ├── pom.xml
 │   └── src/
 │       ├── main/java/com/privatechain/core/
-│       │   ├── model/
-│       │   │   ├── Block.java              # Immutable block with builder
-│       │   │   ├── BlockHeader.java        # Lightweight header (no txs)
-│       │   │   ├── Transaction.java        # Abstract base — extend this
-│       │   │   ├── TransactionId.java      # Typed UUID wrapper
-│       │   │   ├── Address.java            # Node/wallet address value object
-│       │   │   ├── Signature.java          # ECDSA signature value object
-│       │   │   ├── MerkleProof.java        # Inclusion proof DTO
-│       │   │   └── ChainMetadata.java      # Chain stats (height, difficulty, etc.)
-│       │   ├── spi/
-│       │   │   ├── ConsensusEngine.java    # Interface: validateBlock, mineBlock
-│       │   │   ├── TransactionValidator.java # Interface: validate(tx) → Result
-│       │   │   ├── BlockchainStorage.java  # Interface: save/load/exists
-│       │   │   └── BlockchainEventListener.java # Interface: onBlockAdded, etc.
-│       │   ├── event/
-│       │   │   ├── BlockAddedEvent.java
-│       │   │   ├── TransactionSubmittedEvent.java
-│       │   │   ├── ForkDetectedEvent.java
-│       │   │   └── BlockchainEventBus.java # Internal pub/sub bus
-│       │   ├── exception/
-│       │   │   ├── BlockValidationException.java
-│       │   │   ├── TransactionValidationException.java
-│       │   │   ├── ChainCorruptException.java
-│       │   │   └── ConsensusException.java
-│       │   └── util/
-│       │       ├── GenesisBlockFactory.java
-│       │       ├── ChainValidator.java     # Standalone chain integrity checker
-│       │       └── BlockchainConfig.java   # Builder-pattern root config
-│       │
-│       ├── main/java/com/privatechain/
-│       │   ├── Blockchain.java             # Core chain manager
-│       │   ├── BlockchainNode.java         # Top-level entry point (wires all modules)
-│       │   └── TransactionMempool.java     # Unconfirmed transaction pool
+│       │   │
+│       │   ├── model/                   # Immutable domain objects
+│       │   │   ├── Block.java           # Immutable block containing a list of transactions
+│       │   │   │                        # and a cryptographic link to the previous block
+│       │   │   ├── BlockHeader.java     # Lightweight block header record holding version,
+│       │   │   │                        # nonce, Merkle root, and timestamp
+│       │   │   └── Transaction.java     # Abstract base class for all transaction types;
+│       │   │                            # extend this to define domain-specific transactions
+│       │   │
+│       │   ├── spi/                     # Service Provider Interfaces — implement to extend the library
+│       │   │   ├── ConsensusEngine.java         # Pluggable consensus algorithm interface;
+│       │   │   │                                # defines block validation and production
+│       │   │   ├── TransactionValidator.java    # Pluggable transaction validation interface;
+│       │   │   │                                # returns a structured ValidationResult
+│       │   │   ├── BlockchainStorage.java       # Pluggable persistence interface;
+│       │   │   │                                # defines save, load, and query operations
+│       │   │   ├── TransactionPrioritizer.java  # Comparator-based interface for ordering
+│       │   │   │                                # transactions in the mempool
+│       │   │   └── ValidationResult.java        # Immutable result of a validation check,
+│       │   │                                    # carrying a status and error descriptions
+│       │   │
+│       │   ├── event/                   # Asynchronous publish-subscribe event system
+│       │   │   ├── BlockchainEvent.java         # Sealed base class for all blockchain events;
+│       │   │   │                                # contains five permitted inner event types:
+│       │   │   │                                #   BlockAddedEvent
+│       │   │   │                                #   TransactionSubmittedEvent
+│       │   │   │                                #   PeerConnectedEvent
+│       │   │   │                                #   PeerDisconnectedEvent
+│       │   │   │                                #   ForkDetectedEvent
+│       │   │   ├── BlockchainEventBus.java      # Thread-safe event bus that delivers events
+│       │   │   │                                # asynchronously to all registered listeners
+│       │   │   └── BlockchainEventListener.java # Functional interface for receiving events
+│       │   │
+│       │   ├── exception/               # Unchecked exception hierarchy
+│       │   │   ├── BlockchainException.java          # Abstract root for all library exceptions
+│       │   │   ├── BlockValidationException.java     # Thrown when a block fails validation
+│       │   │   ├── ConsensusException.java           # Thrown on an unrecoverable consensus error
+│       │   │   └── TransactionValidationException.java # Thrown when a transaction is rejected
+│       │   │
+│       │   └── builder/                 # Assembly layer — the single place where all modules are wired
+│       │       ├── BlockchainConfig.java    # Fluent builder that assembles a fully configured node;
+│       │       │                           # ships with default in-memory and no-op implementations
+│       │       ├── BlockchainNode.java      # Top-level entry point for the library; manages the
+│       │       │                           # node lifecycle and exposes the primary public API
+│       │       ├── Blockchain.java          # Chain manager responsible for block appending,
+│       │       │                           # integrity verification, and storage delegation
+│       │       └── GenesisBlockFactory.java # Creates the deterministic genesis block for a chain
 │       │
 │       └── test/java/com/privatechain/core/
-│           ├── model/BlockTest.java
-│           ├── model/TransactionTest.java
-│           ├── ChainValidatorTest.java
-│           └── GenesisBlockFactoryTest.java
+│           ├── BlockTest.java               # Tests for block construction, hashing, and linkage
+│           ├── BlockHeaderTest.java         # Tests for header validation and builder paths
+│           ├── BlockchainTest.java          # Tests for chain management and event publication
+│           ├── BlockchainNodeExtTest.java   # Tests for node lifecycle, validator chain, and config
+│           ├── BlockchainEventTest.java     # Tests for all event types and their accessors
+│           ├── BlockchainEventBusTest.java  # Tests for async delivery, isolation, and shutdown
+│           ├── GenesisBlockFactoryTest.java # Tests for genesis block structure and determinism
+│           ├── TransactionTest.java         # Tests for signing, immutability, and equality
+│           ├── ValidationResultTest.java    # Tests for all factory methods and status values
+│           └── ExceptionTest.java          # Tests for exception constructors and accessors
 │
-├── blockchain-crypto/                      # Cryptography primitives
+├── blockchain-crypto/                   # Cryptographic primitives module
 │   ├── pom.xml
 │   └── src/
 │       ├── main/java/com/privatechain/crypto/
-│       │   ├── HashUtil.java               # SHA-256, SHA-3, RIPEMD-160
-│       │   ├── SignatureUtil.java          # ECDSA secp256k1 sign/verify
-│       │   ├── MerkleTree.java             # Build root, generate/verify proofs
-│       │   ├── KeyPairGenerator.java       # EC key pair generation
-│       │   └── AddressUtil.java            # Derive address from public key
+│       │   ├── HashUtil.java            # SHA-256, SHA-3, and double-hash utilities returning hex strings
+│       │   ├── ECDSASignatureUtil.java  # ECDSA signing and verification over secp256k1
+│       │   ├── KeyPairGenerator.java    # Generates elliptic curve key pairs
+│       │   ├── ECKeyPair.java           # Immutable key pair record; masks the private key in toString
+│       │   ├── AddressUtil.java         # Derives a blockchain address from a public key
+│       │   └── MerkleTree.java          # Builds Merkle roots and generates inclusion proofs
 │       └── test/java/com/privatechain/crypto/
 │           ├── HashUtilTest.java
 │           ├── SignatureUtilTest.java
-│           └── MerkleTreeTest.java
+│           ├── MerkleTreeTest.java
+│           └── KeyPairTest.java
 │
-├── blockchain-consensus/                   # Built-in consensus implementations
+├── blockchain-consensus/                # Built-in consensus engine implementations
 │   ├── pom.xml
 │   └── src/
 │       ├── main/java/com/privatechain/consensus/
 │       │   ├── pow/
-│       │   │   ├── ProofOfWorkEngine.java  # SHA-256 mining, configurable difficulty
-│       │   │   └── DifficultyAdjuster.java # Auto-adjust difficulty by block time
+│       │   │   ├── ProofOfWorkEngine.java      # Hash-based mining with configurable difficulty
+│       │   │   └── DifficultyAdjuster.java     # Recalibrates difficulty based on observed block time
 │       │   ├── poa/
-│       │   │   ├── ProofOfAuthorityEngine.java # Authorized signer set
-│       │   │   └── AuthorizedSignerRegistry.java
+│       │   │   ├── ProofOfAuthorityEngine.java # Accepts blocks only from a configured signer set
+│       │   │   └── AuthorizedSignerRegistry.java # Manages the set of authorised signer addresses
 │       │   ├── pbft/
-│       │   │   ├── PBFTEngine.java         # 3-phase: pre-prepare, prepare, commit
-│       │   │   ├── PBFTMessageHandler.java
-│       │   │   └── ViewChangeManager.java  # Leader rotation on failure
+│       │   │   ├── PBFTEngine.java             # Three-phase Byzantine fault-tolerant consensus
+│       │   │   ├── PBFTMessageHandler.java     # Handles pre-prepare, prepare, and commit messages
+│       │   │   └── ViewChangeManager.java      # Manages leader rotation on failure
 │       │   └── roundrobin/
-│       │       └── RoundRobinEngine.java   # Simple slot-based rotation
-│       └── test/...
+│       │       └── RoundRobinEngine.java       # Deterministic slot-based block production for testing
+│       └── test/java/com/privatechain/consensus/
+│           ├── ProofOfWorkEngineTest.java
+│           ├── ProofOfAuthorityEngineTest.java
+│           └── ConsensusEngineContractTest.java  # Abstract contract test executed against all engines
 │
-├── blockchain-network/                     # P2P networking layer
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/com/privatechain/network/
-│       │   ├── peer/
-│       │   │   ├── Peer.java               # Peer value object (id, host, port, pubkey)
-│       │   │   ├── PeerManager.java        # Discover, connect, heartbeat, prune
-│       │   │   └── PeerStore.java          # Persistent peer address book
-│       │   ├── sync/
-│       │   │   ├── SyncManager.java        # Chain sync on startup / after partition
-│       │   │   ├── BlockFetcher.java       # Request missing blocks from peers
-│       │   │   └── ForkResolver.java       # Longest-chain fork resolution
-│       │   ├── gossip/
-│       │   │   ├── GossipProtocol.java     # Probabilistic message propagation
-│       │   │   └── BlockBroadcaster.java   # Push new blocks to connected peers
-│       │   └── rpc/
-│       │       ├── NodeServer.java         # Netty / gRPC server
-│       │       ├── NodeClient.java         # Outbound connection client
-│       │       ├── MessageCodec.java       # Encode/decode wire messages
-│       │       └── proto/
-│       │           └── blockchain.proto    # gRPC/Protobuf definitions
-│       └── test/...
-│
-├── blockchain-storage/                     # Persistence implementations
+├── blockchain-storage/                  # BlockchainStorage implementations
 │   ├── pom.xml
 │   └── src/
 │       ├── main/java/com/privatechain/storage/
 │       │   ├── memory/
-│       │   │   └── InMemoryStorage.java    # HashMap — testing / demo
+│       │   │   └── InMemoryStorage.java        # HashMap-backed storage for testing and demos
 │       │   ├── leveldb/
-│       │   │   └── LevelDBStorage.java     # LevelDB via leveldbjni
+│       │   │   └── LevelDBStorage.java         # Crash-safe persistent storage backed by LevelDB
 │       │   ├── rocksdb/
-│       │   │   └── RocksDBStorage.java     # RocksDB — high write throughput
+│       │   │   └── RocksDBStorage.java         # High write-throughput persistent storage via RocksDB
 │       │   └── fs/
-│       │       └── FileSystemStorage.java  # JSON files per block
-│       └── test/...
+│       │       └── FileSystemStorage.java      # One JSON file per block; requires no native libraries
+│       └── test/java/com/privatechain/storage/
+│           └── StorageContractTest.java        # Abstract contract test parameterized over all implementations
 │
-├── blockchain-wallet/                      # Key management & signing
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/com/privatechain/wallet/
-│       │   ├── Wallet.java                 # Holds ECKeyPair, signs transactions
-│       │   ├── WalletManager.java          # Create, import, export, list wallets
-│       │   └── KeystoreSerializer.java     # Encrypted UTC/JSON keystore format
-│       └── test/...
-│
-├── blockchain-access/                      # Private-chain access control
+├── blockchain-access/                   # Private-chain access control module
 │   ├── pom.xml
 │   └── src/
 │       ├── main/java/com/privatechain/access/
 │       │   ├── rbac/
-│       │   │   ├── Role.java               # Enum: ADMIN, MINER, OBSERVER, VALIDATOR
-│       │   │   ├── Permission.java         # Fine-grained permission enum
-│       │   │   └── PermissionManager.java  # Assign/check roles per address
+│       │   │   ├── Role.java                   # Enumeration of available node roles
+│       │   │   ├── Permission.java             # Fine-grained permission definitions
+│       │   │   └── PermissionManager.java      # Assigns and enforces roles per node address
 │       │   ├── allowlist/
-│       │   │   ├── AllowlistManager.java   # Whitelist of permitted node addresses
-│       │   │   └── AllowlistStore.java     # Persistent storage for the allowlist
+│       │   │   ├── AllowlistManager.java       # Enforces the set of permitted node identifiers
+│       │   │   └── AllowlistStore.java         # Persists the allowlist across restarts
 │       │   └── invite/
-│       │       ├── InvitationService.java  # Admin signs invitation token
-│       │       └── InvitationToken.java    # Signed invite DTO
-│       └── test/...
+│       │       ├── InvitationService.java      # Generates signed, time-limited invitation tokens
+│       │       └── InvitationToken.java        # Immutable signed invitation token value object
+│       └── test/java/com/privatechain/access/
+│           ├── AllowlistManagerTest.java
+│           ├── PermissionManagerTest.java
+│           └── InvitationServiceTest.java
 │
-├── blockchain-spring/                      # Optional Spring Boot autoconfiguration
+├── blockchain-network/                  # Peer-to-peer networking module
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/com/privatechain/network/
+│       │   ├── peer/
+│       │   │   ├── Peer.java                   # Value object representing a remote peer
+│       │   │   ├── PeerManager.java            # Manages connections, heartbeats, and peer pruning
+│       │   │   └── PeerStore.java              # Persists known peer addresses across restarts
+│       │   ├── sync/
+│       │   │   ├── SyncManager.java            # Synchronises the local chain with the network
+│       │   │   ├── BlockFetcher.java           # Requests missing blocks from a remote peer
+│       │   │   └── ForkResolver.java           # Selects the canonical chain when a fork is detected
+│       │   ├── gossip/
+│       │   │   ├── GossipProtocol.java         # Propagates transactions to a random subset of peers
+│       │   │   └── BlockBroadcaster.java       # Pushes newly produced blocks to all connected peers
+│       │   └── rpc/
+│       │       ├── NodeServer.java             # TCP server for inbound peer connections
+│       │       ├── NodeClient.java             # Manages outbound connections to remote peers
+│       │       ├── MessageCodec.java           # Encodes and decodes wire-protocol messages
+│       │       └── proto/
+│       │           └── blockchain.proto        # Protobuf message definitions for peer communication
+│       └── test/java/com/privatechain/network/
+│           └── TwoNodeIntegrationTest.java     # Verifies block propagation between two in-process nodes
+│
+├── blockchain-wallet/                   # Key management and transaction signing module
+│   ├── pom.xml
+│   └── src/
+│       ├── main/java/com/privatechain/wallet/
+│       │   ├── Wallet.java                     # Holds a key pair, derives an address, and signs transactions
+│       │   ├── WalletManager.java              # Creates, imports, exports, and lists wallets
+│       │   └── KeystoreSerializer.java         # Encrypts and decrypts wallets using a standard keystore format
+│       └── test/java/com/privatechain/wallet/
+│           ├── WalletTest.java
+│           └── WalletManagerTest.java
+│
+├── blockchain-spring/                   # Optional Spring Boot autoconfiguration module
 │   ├── pom.xml
 │   └── src/
 │       ├── main/java/com/privatechain/spring/
-│       │   ├── BlockchainAutoConfiguration.java
-│       │   ├── BlockchainProperties.java   # application.yml bindings
-│       │   └── BlockchainHealthIndicator.java
-│       └── main/resources/META-INF/
-│           └── spring/
-│               └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
+│       │   ├── BlockchainAutoConfiguration.java    # Auto-configures a BlockchainNode as a Spring bean
+│       │   ├── BlockchainProperties.java           # Binds application properties to node configuration
+│       │   └── BlockchainHealthIndicator.java      # Exposes chain health via Spring Boot Actuator
+│       └── main/resources/META-INF/spring/
+│           └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
 │
-├── examples/
-│   ├── simple-chain/                       # Minimal standalone example
+├── examples/                            # Runnable demonstration applications — not published to Maven
+│   ├── simple-chain/
 │   │   ├── pom.xml
-│   │   └── src/main/java/.../SimpleChainDemo.java
-│   ├── spring-boot-demo/                   # Spring Boot integration example
+│   │   └── src/main/java/.../SimpleChainDemo.java      # Minimal end-to-end blockchain example
+│   ├── spring-boot-demo/
 │   │   ├── pom.xml
-│   │   └── src/main/java/.../SpringChainApp.java
-│   └── custom-consensus/                   # Shows ConsensusEngine implementation
+│   │   └── src/main/java/.../SpringChainApp.java       # Spring Boot application using autoconfigure
+│   └── custom-consensus/
 │       ├── pom.xml
-│       └── src/main/java/.../VotingConsensusEngine.java
+│       └── src/main/java/.../VotingConsensusEngine.java # Example of a custom ConsensusEngine implementation
 │
-├── pom.xml                                 # Parent POM (BOM, dependency management)
-├── README.md
-├── CHANGELOG.md
-├── LICENSE                                 # Apache 2.0
+├── pom.xml          # Parent POM; manages dependency versions, plugin configuration, and build profiles
+├── qodana.yaml      # JetBrains Qodana static analysis configuration
+├── README.md        # Project overview, quick-start guide, and module dependency table
+├── CHANGELOG.md     # Version history and notable changes per release
+├── CONTRIBUTING.md  # Contribution guidelines and local development setup
+├── LICENSE          # Apache License 2.0
 └── .gitignore
 ```
+
+---
+
+## Module dependency summary
+
+| Module                 | Depends on                                                  | Key external dependency  |
+|------------------------|-------------------------------------------------------------|--------------------------|
+| `blockchain-core`      | JDK only                                                    | —                        |
+| `blockchain-crypto`    | `blockchain-core`                                           | Bouncy Castle            |
+| `blockchain-consensus` | `blockchain-core`, `blockchain-crypto`                      | —                        |
+| `blockchain-storage`   | `blockchain-core`                                           | LevelDB JNI, RocksDB JNI |
+| `blockchain-wallet`    | `blockchain-core`, `blockchain-crypto`                      | —                        |
+| `blockchain-access`    | `blockchain-core`, `blockchain-crypto`                      | —                        |
+| `blockchain-network`   | `blockchain-core`, `blockchain-crypto`, `blockchain-access` | Netty                    |
+| `blockchain-spring`    | all above                                                   | Spring Boot              |
+| `examples/*`           | all above                                                   | —                        |
+
+---
+
+## Key design decisions
+
+**`builder/` package** — `BlockchainConfig`, `BlockchainNode`, `Blockchain`, and
+`GenesisBlockFactory` are co-located in the `core/builder/` package rather than at
+the root `com.privatechain` namespace. This keeps the assembly layer contained and
+prevents unrelated classes from sharing the top-level package.
+
+**Sealed `BlockchainEvent` hierarchy** — all event variants are inner classes of a
+single sealed class rather than separate top-level files. The sealed contract makes
+the complete set of event types explicit and allows consumers to handle events
+exhaustively without a default branch.
+
+**No separate mempool module** — the transaction mempool and its prioritizers are
+implemented inside `blockchain-core` as internal infrastructure rather than as a
+separately published module, keeping the consumer-facing module count low.
+
+**`maven.compiler.release` flag** — the project uses `maven.compiler.release` rather
+than the legacy `maven.compiler.source` and `maven.compiler.target` pair. The release
+flag locks both the bytecode version and the bootclasspath API surface, preventing a
+javac warning that would otherwise fail the build under `-Werror` when the running JDK
+is newer than the target version.
