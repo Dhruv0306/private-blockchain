@@ -15,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -97,9 +98,16 @@ class BlockchainTest {
     @Test
     @DisplayName("addBlock with tampered hash throws BlockValidationException")
     void tamperedHashThrows() {
-        // Construct a block with a bad stored hash
-        Block tampered = new Block(1, BlockHeader.builder().merkleRoot("a".repeat(64)).build(),
-            genesis.getHash(), "badhash".repeat(9) + "x", List.of());
+        // FIX: Pass all 6 constructor args (new minerAddress param = null).
+        // Use Collections.emptyList() for unambiguous List<Transaction> type inference.
+        Block tampered = new Block(
+            1,
+            BlockHeader.builder().merkleRoot("a".repeat(64)).build(),
+            genesis.getHash(),
+            "badhash".repeat(9) + "x",   // deliberately wrong hash
+            Collections.emptyList(),      // explicit List<Transaction> — avoids List<Object>
+            null                          // minerAddress — 6th arg added in patched Block.java
+        );
 
         assertThrows(BlockValidationException.class, () -> blockchain.addBlock(tampered));
     }
@@ -225,6 +233,10 @@ class BlockchainTest {
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
+    /**
+     * Builds a minimal valid next block linked to {@code previous}.
+     * Uses the builder (not the raw constructor) so no miner address is needed.
+     */
     private Block buildNextBlock(Block previous) {
         BlockHeader header = BlockHeader.builder()
             .nonce(1L)

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -124,9 +125,16 @@ class BlockTest {
     @Test
     @DisplayName("manually constructed block with wrong hash fails isHashValid")
     void tamperedHashFailsValidation() {
-        // Construct a block with a deliberately wrong hash
-        Block tampered = new Block(0, sampleHeader(), Block.GENESIS_PREVIOUS_HASH,
-            "deadbeef".repeat(8), List.of());
+        // FIX: Pass all 6 constructor arguments (minerAddress = null).
+        // Use Collections.emptyList() for explicit List<Transaction> type inference.
+        Block tampered = new Block(
+            0,
+            sampleHeader(),
+            Block.GENESIS_PREVIOUS_HASH,
+            "deadbeef".repeat(8),          // deliberately wrong hash
+            Collections.emptyList(),        // explicit type — avoids List<Object> inference
+            null                            // minerAddress — new 6th arg, null for PoW
+        );
 
         assertFalse(tampered.isHashValid(), "tampered hash must fail validation");
     }
@@ -182,5 +190,60 @@ class BlockTest {
         String str = block.toString();
         assertTrue(str.contains("3"), "toString should include index");
         assertTrue(str.contains("2"), "toString should include txCount");
+    }
+
+    // ─── minerAddress ─────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("minerAddress is null for PoW blocks by default")
+    void minerAddressNullByDefault() {
+        Block block = Block.builder()
+            .index(0)
+            .previousHash(Block.GENESIS_PREVIOUS_HASH)
+            .header(sampleHeader())
+            .build();
+
+        assertNull(block.getMinerAddress(),
+            "PoW blocks must have null minerAddress by default");
+    }
+
+    @Test
+    @DisplayName("minerAddress is preserved when set via builder")
+    void minerAddressPreservedInBuilder() {
+        Block block = Block.builder()
+            .index(1)
+            .previousHash(Block.GENESIS_PREVIOUS_HASH)
+            .header(sampleHeader())
+            .minerAddress("node-A-address")
+            .build();
+
+        assertEquals("node-A-address", block.getMinerAddress());
+    }
+
+    @Test
+    @DisplayName("different minerAddress produces different hash")
+    void differentMinerAddressProducesDifferentHash() {
+        BlockHeader header = sampleHeader();
+        Block b1 = Block.builder().index(0).previousHash(Block.GENESIS_PREVIOUS_HASH)
+            .header(header).minerAddress("nodeA").build();
+        Block b2 = Block.builder().index(0).previousHash(Block.GENESIS_PREVIOUS_HASH)
+            .header(header).minerAddress("nodeB").build();
+
+        assertNotEquals(b1.getHash(), b2.getHash(),
+            "Different minerAddress must produce different block hash");
+    }
+
+    @Test
+    @DisplayName("isHashValid passes for block with minerAddress set")
+    void hashValidWithMinerAddress() {
+        Block block = Block.builder()
+            .index(1)
+            .previousHash(Block.GENESIS_PREVIOUS_HASH)
+            .header(sampleHeader())
+            .minerAddress("authorized-node")
+            .build();
+
+        assertTrue(block.isHashValid(),
+            "isHashValid must return true for block with minerAddress");
     }
 }
