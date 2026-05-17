@@ -251,10 +251,9 @@ public final class Block {
      * Returns the address of the node that produced this block, or {@code null}
      * for PoW blocks where no identity claim is embedded.
      *
-     * <p>Used by {@link com.privatechain.consensus.poa.ProofOfAuthorityEngine},
-     * {@link com.privatechain.consensus.roundrobin.RoundRobinEngine}, and
-     * {@link com.privatechain.consensus.pbft.PBFTEngine} to validate that the
-     * block was produced by an authorized node.</p>
+     * <p>Used by identity-based consensus engines (ProofOfAuthorityEngine,
+     * RoundRobinEngine, PBFTEngine — all in {@code blockchain-consensus}) to
+     * validate that the block was produced by an authorized node.</p>
      *
      * @return miner address string, or {@code null}
      */
