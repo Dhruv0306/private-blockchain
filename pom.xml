@@ -89,7 +89,7 @@
              CVE-2026-29146 (7.5) Padding Oracle in EncryptInterceptor
              CVE-2026-34483 (7.5) JSON injection in JsonAccessLogValve
              Fix: 10.1.54+ (stays on 10.x branch matching Spring Boot 3.x) -->
-        <tomcat.version>10.1.54</tomcat.version>
+        <tomcat.version>10.1.55</tomcat.version>
 
         <!-- protobuf-java 3.25.3 → 4.28.2
              CVE-2024-7254 (CVSS 7.5)
