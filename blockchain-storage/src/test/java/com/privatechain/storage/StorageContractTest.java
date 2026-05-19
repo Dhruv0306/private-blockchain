@@ -51,6 +51,44 @@ public abstract class StorageContractTest {
     // ─── SPI to implement ─────────────────────────────────────────────────────
 
     /**
+     * The storage under test, re-created for each test method.
+     */
+    private BlockchainStorage storage;
+    /**
+     * A pre-built genesis block shared across test methods.
+     */
+    private Block genesis;
+
+    // ─── Test fixtures ────────────────────────────────────────────────────────
+
+    /**
+     * Constructs a valid next block linked to the given previous block.
+     *
+     * <p>The Merkle root is a deterministic 64-character hex derived from the
+     * previous block's hash to produce a unique root without needing the crypto module.</p>
+     *
+     * @param previous the block this new block extends
+     * @return a new block with {@code index = previous.getIndex() + 1}
+     */
+    private static Block buildNextBlock(Block previous) {
+        // Derive a deterministic 64-char merkle root from the previous hash
+        String merkleRoot = previous.getHash().substring(0, 32)
+            + previous.getHash().substring(0, 32);
+
+        BlockHeader header = BlockHeader.builder()
+            .nonce(previous.getIndex() + 1L)
+            .merkleRoot(merkleRoot)
+            .build();
+
+        return Block.builder()
+            .index(previous.getIndex() + 1)
+            .previousHash(previous.getHash())
+            .transactions(java.util.Collections.emptyList())
+            .header(header)
+            .build();
+    }
+
+    /**
      * Creates a fresh, empty storage instance for each test.
      *
      * <p>Implementations should return a new instance backed by a temporary or
@@ -70,23 +108,13 @@ public abstract class StorageContractTest {
      */
     protected abstract void destroyStorage(BlockchainStorage storage);
 
-    // ─── Test fixtures ────────────────────────────────────────────────────────
-
-    /**
-     * The storage under test, re-created for each test method.
-     */
-    private BlockchainStorage storage;
-
-    /**
-     * A pre-built genesis block shared across test methods.
-     */
-    private Block genesis;
-
     @BeforeEach
     void setUp() {
         storage = createStorage();
         genesis = GenesisBlockFactory.create("tck-test-chain");
     }
+
+    // ─── chainHeight ──────────────────────────────────────────────────────────
 
     @AfterEach
     void tearDown() {
@@ -99,7 +127,7 @@ public abstract class StorageContractTest {
         }
     }
 
-    // ─── chainHeight ──────────────────────────────────────────────────────────
+    // ─── saveBlock ────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("chainHeight()")
@@ -130,7 +158,7 @@ public abstract class StorageContractTest {
         }
     }
 
-    // ─── saveBlock ────────────────────────────────────────────────────────────
+    // ─── loadBlock ────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("saveBlock()")
@@ -170,7 +198,7 @@ public abstract class StorageContractTest {
         }
     }
 
-    // ─── loadBlock ────────────────────────────────────────────────────────────
+    // ─── loadBlockByHash ─────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("loadBlock(int)")
@@ -226,7 +254,7 @@ public abstract class StorageContractTest {
         }
     }
 
-    // ─── loadBlockByHash ─────────────────────────────────────────────────────
+    // ─── loadAll ─────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("loadBlockByHash(String)")
@@ -272,7 +300,7 @@ public abstract class StorageContractTest {
         }
     }
 
-    // ─── loadAll ─────────────────────────────────────────────────────────────
+    // ─── exists ──────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("loadAll()")
@@ -344,7 +372,7 @@ public abstract class StorageContractTest {
         }
     }
 
-    // ─── exists ──────────────────────────────────────────────────────────────
+    // ─── deleteAll ───────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("exists(String)")
@@ -377,7 +405,7 @@ public abstract class StorageContractTest {
         }
     }
 
-    // ─── deleteAll ───────────────────────────────────────────────────────────
+    // ─── Round-trip integrity ─────────────────────────────────────────────────
 
     @Nested
     @DisplayName("deleteAll()")
@@ -426,7 +454,7 @@ public abstract class StorageContractTest {
         }
     }
 
-    // ─── Round-trip integrity ─────────────────────────────────────────────────
+    // ─── Security: hash verification on load ─────────────────────────────────
 
     @Nested
     @DisplayName("Round-trip integrity")
@@ -475,7 +503,7 @@ public abstract class StorageContractTest {
         }
     }
 
-    // ─── Security: hash verification on load ─────────────────────────────────
+    // ─── Performance smoke test ───────────────────────────────────────────────
 
     @Nested
     @DisplayName("Hash corruption detection (NFR-SEC-03)")
@@ -493,7 +521,7 @@ public abstract class StorageContractTest {
         }
     }
 
-    // ─── Performance smoke test ───────────────────────────────────────────────
+    // ─── Test helpers ─────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("Performance smoke test")
@@ -517,34 +545,5 @@ public abstract class StorageContractTest {
             assertTrue(elapsed < 5_000,
                 "100 save + load operations must complete in < 5 s, took " + elapsed + " ms");
         }
-    }
-
-    // ─── Test helpers ─────────────────────────────────────────────────────────
-
-    /**
-     * Constructs a valid next block linked to the given previous block.
-     *
-     * <p>The Merkle root is a deterministic 64-character hex derived from the
-     * previous block's hash to produce a unique root without needing the crypto module.</p>
-     *
-     * @param previous the block this new block extends
-     * @return a new block with {@code index = previous.getIndex() + 1}
-     */
-    private static Block buildNextBlock(Block previous) {
-        // Derive a deterministic 64-char merkle root from the previous hash
-        String merkleRoot = previous.getHash().substring(0, 32)
-            + previous.getHash().substring(0, 32);
-
-        BlockHeader header = BlockHeader.builder()
-            .nonce(previous.getIndex() + 1L)
-            .merkleRoot(merkleRoot)
-            .build();
-
-        return Block.builder()
-            .index(previous.getIndex() + 1)
-            .previousHash(previous.getHash())
-            .transactions(java.util.Collections.emptyList())
-            .header(header)
-            .build();
     }
 }

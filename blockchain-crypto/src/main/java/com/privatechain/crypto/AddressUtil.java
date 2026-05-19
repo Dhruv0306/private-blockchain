@@ -2,11 +2,7 @@ package com.privatechain.crypto;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.PublicKey;
-import java.security.Security;
+import java.security.*;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -40,10 +36,14 @@ public final class AddressUtil {
 
     // ─── Algorithm constants ──────────────────────────────────────────────────
 
-    /** RIPEMD-160 algorithm name under the BouncyCastle provider. */
+    /**
+     * RIPEMD-160 algorithm name under the BouncyCastle provider.
+     */
     private static final String RIPEMD_160 = "RIPEMD160";
 
-    /** BouncyCastle provider name. */
+    /**
+     * BouncyCastle provider name.
+     */
     private static final String BC_PROVIDER = "BC";
 
     /**
@@ -100,8 +100,8 @@ public final class AddressUtil {
      * <p>Pass a custom version byte (e.g., {@code 0x6f} for Bitcoin testnet)
      * to produce network-specific addresses.</p>
      *
-     * @param publicKeyBytes  DER-encoded public key bytes (non-null, non-empty)
-     * @param versionByte     single-byte network identifier prepended to the hash
+     * @param publicKeyBytes DER-encoded public key bytes (non-null, non-empty)
+     * @param versionByte    single-byte network identifier prepended to the hash
      * @return a Base58Check address string
      * @throws NullPointerException     if publicKeyBytes is null
      * @throws IllegalArgumentException if publicKeyBytes is empty
@@ -161,7 +161,7 @@ public final class AddressUtil {
 
             // Split payload and embedded checksum
             int payloadLength = decoded.length - CHECKSUM_LENGTH;
-            byte[] payload  = Arrays.copyOfRange(decoded, 0, payloadLength);
+            byte[] payload = Arrays.copyOfRange(decoded, 0, payloadLength);
             byte[] checksum = Arrays.copyOfRange(decoded, payloadLength, decoded.length);
 
             // Recompute checksum from payload

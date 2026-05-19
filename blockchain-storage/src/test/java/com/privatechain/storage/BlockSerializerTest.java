@@ -11,10 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link BlockSerializer}.
@@ -28,7 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @DisplayName("BlockSerializer unit tests")
 class BlockSerializerTest {
 
-    /** A genesis block reused across tests — immutable so safe to share. */
+    /**
+     * A genesis block reused across tests — immutable so safe to share.
+     */
     private Block genesis;
 
     @BeforeEach
@@ -54,7 +53,7 @@ class BlockSerializerTest {
         @DisplayName("fromBytes(toBytes(block)) round-trips the block hash")
         void roundTripPreservesHash() {
             byte[] bytes = BlockSerializer.toBytes(genesis);
-            Block loaded  = BlockSerializer.fromBytes(bytes);
+            Block loaded = BlockSerializer.fromBytes(bytes);
             assertEquals(genesis.getHash(), loaded.getHash(),
                 "Hash must survive a toBytes → fromBytes round-trip");
         }
@@ -63,7 +62,7 @@ class BlockSerializerTest {
         @DisplayName("fromBytes(toBytes(block)) round-trips the block index")
         void roundTripPreservesIndex() {
             byte[] bytes = BlockSerializer.toBytes(genesis);
-            Block loaded  = BlockSerializer.fromBytes(bytes);
+            Block loaded = BlockSerializer.fromBytes(bytes);
             assertEquals(genesis.getIndex(), loaded.getIndex());
         }
 
@@ -71,7 +70,7 @@ class BlockSerializerTest {
         @DisplayName("fromBytes(toBytes(block)) round-trips previousHash")
         void roundTripPreservesPreviousHash() {
             byte[] bytes = BlockSerializer.toBytes(genesis);
-            Block loaded  = BlockSerializer.fromBytes(bytes);
+            Block loaded = BlockSerializer.fromBytes(bytes);
             assertEquals(genesis.getPreviousHash(), loaded.getPreviousHash());
         }
 
@@ -101,6 +100,19 @@ class BlockSerializerTest {
     @DisplayName("toJson() and fromJson()")
     class ToJsonFromJsonTests {
 
+        /**
+         * Counts non-overlapping occurrences of {@code needle} in {@code haystack}.
+         */
+        private static int countOccurrences(String haystack, String needle) {
+            int count = 0;
+            int idx = 0;
+            while ((idx = haystack.indexOf(needle, idx)) != -1) {
+                count++;
+                idx += needle.length();
+            }
+            return count;
+        }
+
         @Test
         @DisplayName("toJson() produces a non-blank JSON string")
         void toJsonProducesNonBlankString() {
@@ -120,7 +132,7 @@ class BlockSerializerTest {
         @Test
         @DisplayName("fromJson(toJson(block)) round-trips the block hash")
         void fromJsonRoundTripHash() {
-            String json  = BlockSerializer.toJson(genesis);
+            String json = BlockSerializer.toJson(genesis);
             Block loaded = BlockSerializer.fromJson(json);
             assertEquals(genesis.getHash(), loaded.getHash());
         }
@@ -128,7 +140,7 @@ class BlockSerializerTest {
         @Test
         @DisplayName("fromJson(toJson(block)) round-trips the block index")
         void fromJsonRoundTripIndex() {
-            String json  = BlockSerializer.toJson(genesis);
+            String json = BlockSerializer.toJson(genesis);
             Block loaded = BlockSerializer.fromJson(json);
             assertEquals(genesis.getIndex(), loaded.getIndex());
         }
@@ -166,17 +178,6 @@ class BlockSerializerTest {
             assertEquals(1, occurrences,
                 "'merkleRoot' must appear exactly once in JSON (inside header), not as a "
                     + "redundant top-level field. JSON was: " + json);
-        }
-
-        /** Counts non-overlapping occurrences of {@code needle} in {@code haystack}. */
-        private static int countOccurrences(String haystack, String needle) {
-            int count = 0;
-            int idx   = 0;
-            while ((idx = haystack.indexOf(needle, idx)) != -1) {
-                count++;
-                idx += needle.length();
-            }
-            return count;
         }
     }
 

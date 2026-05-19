@@ -36,7 +36,7 @@ public final class PBFTEngine implements ConsensusEngine {
      * least 1 so that a single-node test chain remains usable.</p>
      *
      * @param validators ordered validator addresses participating in consensus
-     * @throws NullPointerException if {@code validators} is null
+     * @throws NullPointerException     if {@code validators} is null
      * @throws IllegalArgumentException if the collection contains blank entries
      */
     public PBFTEngine(Collection<String> validators) {
@@ -48,7 +48,7 @@ public final class PBFTEngine implements ConsensusEngine {
      *
      * @param validators ordered validator addresses participating in consensus
      * @param quorumSize number of distinct validator approvals required for commit
-     * @throws NullPointerException if {@code validators} is null
+     * @throws NullPointerException     if {@code validators} is null
      * @throws IllegalArgumentException if the validator list contains blanks or the quorum is invalid
      */
     public PBFTEngine(Collection<String> validators, int quorumSize) {
@@ -64,11 +64,24 @@ public final class PBFTEngine implements ConsensusEngine {
      *
      * @param quorumSize number of validator approvals required for commit
      * @param validators ordered validator addresses participating in consensus
-     * @throws NullPointerException if {@code validators} is null
+     * @throws NullPointerException     if {@code validators} is null
      * @throws IllegalArgumentException if the validator list contains blanks or the quorum is invalid
      */
     public PBFTEngine(int quorumSize, Collection<String> validators) {
         this(validators, quorumSize);
+    }
+
+    /**
+     * Derives a conservative quorum size from the validator set size.
+     *
+     * @param validators validator collection
+     * @return quorum size in the usual {@code 2f + 1} form
+     * @throws NullPointerException if {@code validators} is null
+     */
+    private static int deriveQuorumSize(Collection<String> validators) {
+        Objects.requireNonNull(validators, "validators must not be null");
+        int size = validators.size();
+        return Math.max(1, (size * 2) / 3 + 1);
     }
 
     /**
@@ -96,7 +109,7 @@ public final class PBFTEngine implements ConsensusEngine {
      * @param chain the current blockchain state
      * @return {@code true} if the block is valid for this engine
      * @throws NullPointerException if {@code block} or {@code chain} is null
-     * @throws ConsensusException if the configured quorum cannot be satisfied
+     * @throws ConsensusException   if the configured quorum cannot be satisfied
      */
     @Override
     public boolean validateBlock(Block block, Blockchain chain) {
@@ -122,11 +135,11 @@ public final class PBFTEngine implements ConsensusEngine {
     /**
      * Produces a new block using the deterministic PBFT leader for the current view.
      *
-     * @param transactions ordered transactions to include in the block
+     * @param transactions  ordered transactions to include in the block
      * @param previousBlock the current chain tip
      * @return a newly produced block
      * @throws NullPointerException if {@code transactions} or {@code previousBlock} is null
-     * @throws ConsensusException if the configured quorum cannot be satisfied
+     * @throws ConsensusException   if the configured quorum cannot be satisfied
      */
     @Override
     public Block mineBlock(List<Transaction> transactions, Block previousBlock) {
@@ -151,19 +164,6 @@ public final class PBFTEngine implements ConsensusEngine {
     @Override
     public String engineName() {
         return "PBFT";
-    }
-
-    /**
-     * Derives a conservative quorum size from the validator set size.
-     *
-     * @param validators validator collection
-     * @return quorum size in the usual {@code 2f + 1} form
-     * @throws NullPointerException if {@code validators} is null
-     */
-    private static int deriveQuorumSize(Collection<String> validators) {
-        Objects.requireNonNull(validators, "validators must not be null");
-        int size = validators.size();
-        return Math.max(1, (size * 2) / 3 + 1);
     }
 }
 

@@ -8,15 +8,7 @@ import org.bouncycastle.jce.spec.ECPublicKeySpec;
 import org.bouncycastle.math.ec.ECPoint;
 
 import java.math.BigInteger;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.SecureRandom;
-import java.security.Security;
+import java.security.*;
 import java.util.HexFormat;
 import java.util.Objects;
 
@@ -43,10 +35,14 @@ import java.util.Objects;
  */
 public final class KeyPairGenerator {
 
-    /** secp256k1 curve name used in BouncyCastle's named-curve table. */
+    /**
+     * secp256k1 curve name used in BouncyCastle's named-curve table.
+     */
     private static final String CURVE_NAME = "secp256k1";
 
-    /** JCA algorithm identifier for elliptic-curve keys. */
+    /**
+     * JCA algorithm identifier for elliptic-curve keys.
+     */
     private static final String EC_ALGORITHM = "EC";
 
     static {

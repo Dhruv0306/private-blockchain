@@ -4,25 +4,12 @@ import com.privatechain.core.exception.BlockValidationException;
 import com.privatechain.core.model.Block;
 import com.privatechain.core.spi.BlockchainStorage;
 import com.privatechain.storage.BlockSerializer;
-import org.rocksdb.BloomFilter;
-import org.rocksdb.BlockBasedTableConfig;
-import org.rocksdb.CompressionType;
-import org.rocksdb.LRUCache;
-import org.rocksdb.Options;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksIterator;
-import org.rocksdb.WriteBatch;
-import org.rocksdb.WriteOptions;
+import org.rocksdb.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
@@ -74,10 +61,14 @@ public final class RocksDBStorage implements BlockchainStorage, AutoCloseable {
 
     private static final Logger LOGGER = Logger.getLogger(RocksDBStorage.class.getName());
 
-    /** Prefix byte used to distinguish block-index keys from future meta-keys. */
+    /**
+     * Prefix byte used to distinguish block-index keys from future meta-keys.
+     */
     private static final byte KEY_PREFIX_BLOCK = (byte) 0x01;
 
-    /** Number of bytes in the composite key: 1 prefix byte + 4 index bytes. */
+    /**
+     * Number of bytes in the composite key: 1 prefix byte + 4 index bytes.
+     */
     private static final int KEY_LENGTH = 5;
 
     static {
@@ -103,7 +94,9 @@ public final class RocksDBStorage implements BlockchainStorage, AutoCloseable {
      */
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
-    /** Human-readable path used in log messages and {@link #toString()}. */
+    /**
+     * Human-readable path used in log messages and {@link #toString()}.
+     */
     private final String dataPath;
 
     // ─── Constructor ──────────────────────────────────────────────────────────
@@ -156,6 +149,43 @@ public final class RocksDBStorage implements BlockchainStorage, AutoCloseable {
     // ─── BlockchainStorage implementation ────────────────────────────────────
 
     /**
+     * Encodes a block index as a 5-byte composite key:
+     * {@code [KEY_PREFIX_BLOCK (1 byte)] + [index as big-endian 4 bytes]}.
+     *
+     * @param index block index (&ge; 0)
+     * @return 5-byte key array
+     */
+    private static byte[] blockKey(int index) {
+        ByteBuffer buf = ByteBuffer.allocate(KEY_LENGTH).order(ByteOrder.BIG_ENDIAN);
+        buf.put(KEY_PREFIX_BLOCK);
+        buf.putInt(index);
+        return buf.array();
+    }
+
+    /**
+     * Returns {@code true} if the given key matches the block key format.
+     *
+     * @param key raw key bytes from the iterator
+     * @return {@code true} if the key has the block prefix and correct length
+     */
+    private static boolean isBlockKey(byte[] key) {
+        return key != null && key.length == KEY_LENGTH && key[0] == KEY_PREFIX_BLOCK;
+    }
+
+    /**
+     * Compares two hex-encoded hash strings in constant time (NFR-SEC-03).
+     *
+     * @param a first hash string
+     * @param b second hash string
+     * @return {@code true} if the strings represent the same hash value
+     */
+    private static boolean constantTimeHashEquals(String a, String b) {
+        return java.security.MessageDigest.isEqual(
+            a.getBytes(StandardCharsets.UTF_8),
+            b.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
      * Persists a block atomically using a RocksDB {@link WriteBatch}.
      *
      * <p>Write batches in RocksDB are atomic: either the entire batch is applied
@@ -169,7 +199,7 @@ public final class RocksDBStorage implements BlockchainStorage, AutoCloseable {
     @Override
     public void saveBlock(Block block) {
         Objects.requireNonNull(block, "block must not be null");
-        byte[] key   = blockKey(block.getIndex());
+        byte[] key = blockKey(block.getIndex());
         byte[] value = BlockSerializer.toBytes(block);
 
         lock.writeLock().lock();
@@ -274,6 +304,8 @@ public final class RocksDBStorage implements BlockchainStorage, AutoCloseable {
         }
     }
 
+    // ─── AutoCloseable ────────────────────────────────────────────────────────
+
     /**
      * Returns {@code true} if a block with the given hash is stored.
      *
@@ -285,6 +317,8 @@ public final class RocksDBStorage implements BlockchainStorage, AutoCloseable {
     public boolean exists(String hash) {
         return loadBlockByHash(hash).isPresent();
     }
+
+    // ─── Key encoding helpers ─────────────────────────────────────────────────
 
     /**
      * Returns the number of stored blocks by counting block-keyed entries.
@@ -340,8 +374,6 @@ public final class RocksDBStorage implements BlockchainStorage, AutoCloseable {
         }
     }
 
-    // ─── AutoCloseable ────────────────────────────────────────────────────────
-
     /**
      * Closes the RocksDB database and releases all native resources.
      *
@@ -358,45 +390,6 @@ public final class RocksDBStorage implements BlockchainStorage, AutoCloseable {
         } finally {
             lock.writeLock().unlock();
         }
-    }
-
-    // ─── Key encoding helpers ─────────────────────────────────────────────────
-
-    /**
-     * Encodes a block index as a 5-byte composite key:
-     * {@code [KEY_PREFIX_BLOCK (1 byte)] + [index as big-endian 4 bytes]}.
-     *
-     * @param index block index (&ge; 0)
-     * @return 5-byte key array
-     */
-    private static byte[] blockKey(int index) {
-        ByteBuffer buf = ByteBuffer.allocate(KEY_LENGTH).order(ByteOrder.BIG_ENDIAN);
-        buf.put(KEY_PREFIX_BLOCK);
-        buf.putInt(index);
-        return buf.array();
-    }
-
-    /**
-     * Returns {@code true} if the given key matches the block key format.
-     *
-     * @param key raw key bytes from the iterator
-     * @return {@code true} if the key has the block prefix and correct length
-     */
-    private static boolean isBlockKey(byte[] key) {
-        return key != null && key.length == KEY_LENGTH && key[0] == KEY_PREFIX_BLOCK;
-    }
-
-    /**
-     * Compares two hex-encoded hash strings in constant time (NFR-SEC-03).
-     *
-     * @param a first hash string
-     * @param b second hash string
-     * @return {@code true} if the strings represent the same hash value
-     */
-    private static boolean constantTimeHashEquals(String a, String b) {
-        return java.security.MessageDigest.isEqual(
-            a.getBytes(StandardCharsets.UTF_8),
-            b.getBytes(StandardCharsets.UTF_8));
     }
 
     /**

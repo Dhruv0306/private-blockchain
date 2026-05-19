@@ -55,6 +55,24 @@ public final class InMemoryStorage implements BlockchainStorage {
     // ─── BlockchainStorage implementation ────────────────────────────────────
 
     /**
+     * Compares two hex-encoded hash strings in constant time to prevent timing
+     * side-channel attacks (NFR-SEC-03).
+     *
+     * <p>{@link MessageDigest#isEqual(byte[], byte[])} is mandated by the JDK
+     * to run in time proportional to the array length, not the position of the
+     * first differing byte.</p>
+     *
+     * @param a first hash hex string
+     * @param b second hash hex string
+     * @return {@code true} if both strings represent the same hash
+     */
+    private static boolean constantTimeHashEquals(String a, String b) {
+        return MessageDigest.isEqual(
+            a.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            b.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    /**
      * Persists a block to the in-memory store.
      *
      * <p>Saving the same block index twice overwrites the previous entry —
@@ -181,6 +199,8 @@ public final class InMemoryStorage implements BlockchainStorage {
         }
     }
 
+    // ─── Internal helpers ─────────────────────────────────────────────────────
+
     /**
      * Removes all blocks from the in-memory store.
      *
@@ -197,26 +217,6 @@ public final class InMemoryStorage implements BlockchainStorage {
         } finally {
             lock.writeLock().unlock();
         }
-    }
-
-    // ─── Internal helpers ─────────────────────────────────────────────────────
-
-    /**
-     * Compares two hex-encoded hash strings in constant time to prevent timing
-     * side-channel attacks (NFR-SEC-03).
-     *
-     * <p>{@link MessageDigest#isEqual(byte[], byte[])} is mandated by the JDK
-     * to run in time proportional to the array length, not the position of the
-     * first differing byte.</p>
-     *
-     * @param a first hash hex string
-     * @param b second hash hex string
-     * @return {@code true} if both strings represent the same hash
-     */
-    private static boolean constantTimeHashEquals(String a, String b) {
-        return MessageDigest.isEqual(
-            a.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-            b.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     /**

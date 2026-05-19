@@ -33,7 +33,7 @@ public final class ProofOfAuthorityEngine implements ConsensusEngine {
      * Creates a proof-of-authority engine with the supplied authorized addresses.
      *
      * @param authorizedAddresses collection of node addresses permitted to produce blocks
-     * @throws NullPointerException if {@code authorizedAddresses} is null
+     * @throws NullPointerException     if {@code authorizedAddresses} is null
      * @throws IllegalArgumentException if the collection contains blank entries
      */
     public ProofOfAuthorityEngine(Collection<String> authorizedAddresses) {
@@ -77,11 +77,11 @@ public final class ProofOfAuthorityEngine implements ConsensusEngine {
     /**
      * Builds a new authority-signed block using the first authorized miner address.
      *
-     * @param transactions ordered transactions to include in the block
+     * @param transactions  ordered transactions to include in the block
      * @param previousBlock the current chain tip
      * @return a newly produced block
      * @throws NullPointerException if {@code transactions} or {@code previousBlock} is null
-     * @throws ConsensusException if no authorized addresses are configured
+     * @throws ConsensusException   if no authorized addresses are configured
      */
     @Override
     public Block mineBlock(List<Transaction> transactions, Block previousBlock) {

@@ -5,15 +5,12 @@ import com.privatechain.core.builder.Blockchain;
 import com.privatechain.core.exception.ConsensusException;
 import com.privatechain.core.model.Block;
 import com.privatechain.core.spi.ConsensusEngine;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link PBFTEngine}.

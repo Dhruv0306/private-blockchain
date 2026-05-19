@@ -42,7 +42,9 @@ public final class HashUtil {
 
     // ─── Algorithm constants ──────────────────────────────────────────────────
 
-    /** JCA algorithm name for SHA-256. */
+    /**
+     * JCA algorithm name for SHA-256.
+     */
     private static final String SHA_256 = "SHA-256";
 
     /**
@@ -51,7 +53,9 @@ public final class HashUtil {
      */
     private static final String SHA3_256 = "SHA3-256";
 
-    /** BouncyCastle JCA provider name. */
+    /**
+     * BouncyCastle JCA provider name.
+     */
     private static final String BC_PROVIDER = "BC";
 
     // ─── Static initializer ───────────────────────────────────────────────────

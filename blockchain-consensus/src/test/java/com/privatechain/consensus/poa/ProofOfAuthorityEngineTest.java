@@ -4,16 +4,13 @@ import com.privatechain.consensus.ConsensusEngineContractTest;
 import com.privatechain.core.builder.Blockchain;
 import com.privatechain.core.model.Block;
 import com.privatechain.core.spi.ConsensusEngine;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link ProofOfAuthorityEngine}.

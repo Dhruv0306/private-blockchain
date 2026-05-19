@@ -8,12 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link MerkleTree}, {@link MerkleProof}, and proof verification.
@@ -33,7 +28,9 @@ class MerkleTreeTest {
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    /** Creates a deterministic list of tx IDs of the given length. */
+    /**
+     * Creates a deterministic list of tx IDs of the given length.
+     */
     private List<String> txIds(int count) {
         List<String> ids = new java.util.ArrayList<>(count);
         for (int i = 0; i < count; i++) {
@@ -176,7 +173,7 @@ class MerkleTreeTest {
         @Test
         @DisplayName("proof depth grows with tree height")
         void proofDepthGrowsWithSize() {
-            List<String> two  = txIds(2);
+            List<String> two = txIds(2);
             List<String> four = txIds(4);
             List<String> eight = txIds(8);
 
@@ -295,7 +292,7 @@ class MerkleTreeTest {
         @DisplayName("proof does not verify against a wrong root")
         void wrongRootFails() {
             List<String> ids = txIds(4);
-            String root  = MerkleTree.buildRoot(ids);
+            String root = MerkleTree.buildRoot(ids);
             String wrong = HashUtil.sha256("NOT-THE-REAL-ROOT");
 
             MerkleProof proof = MerkleTree.getProof(ids, ids.get(0));

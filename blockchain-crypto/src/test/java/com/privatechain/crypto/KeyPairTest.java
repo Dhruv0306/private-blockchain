@@ -5,12 +5,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link ECKeyPair} and {@link KeyPairGenerator} covering key generation,
@@ -206,7 +201,7 @@ class KeyPairTest {
             ECKeyPair restored = KeyPairGenerator.fromRawPrivateScalar(rawScalarHex);
 
             byte[] data = "sign-me".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            byte[] sig  = ECDSASignatureUtil.sign(data, restored);
+            byte[] sig = ECDSASignatureUtil.sign(data, restored);
             assertTrue(ECDSASignatureUtil.verify(data, sig, restored.getPublicKey()),
                 "signature from restored key must verify");
         }

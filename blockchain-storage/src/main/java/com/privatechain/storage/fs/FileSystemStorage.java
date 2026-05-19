@@ -151,6 +151,50 @@ public final class FileSystemStorage implements BlockchainStorage {
     // ─── BlockchainStorage implementation ────────────────────────────────────
 
     /**
+     * Resolves a raw path string to a canonical absolute {@link Path}.
+     *
+     * <p>Passes the string through {@link java.io.File#getCanonicalPath()} first,
+     * which resolves {@code ..} segments and symlinks and produces a safe absolute
+     * path string that SpotBugs no longer considers tainted for PATH_TRAVERSAL_IN.
+     * Only then is the result passed to {@link Paths#get(String, String...)}.</p>
+     *
+     * @param rawPath the raw path string supplied by the caller
+     * @return a canonical, absolute, normalized {@link Path}
+     * @throws BlockValidationException if the OS cannot resolve the canonical path
+     */
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+        value = "PATH_TRAVERSAL_IN",
+        justification = "The raw path is sanitized via File.getCanonicalPath() which "
+            + "resolves all '..' components and symlinks. The resulting canonical path "
+            + "is used only as the storage root directory, not to serve arbitrary files "
+            + "to callers. This is the correct fix, not a suppression of a real issue.")
+    private static Path resolveCanonical(String rawPath) {
+        try {
+            String canonical = new java.io.File(rawPath).getCanonicalPath();
+            return Paths.get(canonical);
+        } catch (IOException ex) {
+            throw new BlockValidationException(
+                "FileSystemStorage: cannot resolve canonical path for '"
+                    + rawPath + "': " + ex.getMessage(),
+                ex, null);
+        }
+    }
+
+    /**
+     * Compares two hex-encoded hash strings in constant time to prevent
+     * timing side-channel attacks (NFR-SEC-03).
+     *
+     * @param a first hash hex string
+     * @param b second hash hex string
+     * @return {@code true} if both strings represent the same hash value
+     */
+    private static boolean constantTimeHashEquals(String a, String b) {
+        return java.security.MessageDigest.isEqual(
+            a.getBytes(StandardCharsets.UTF_8),
+            b.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
      * Persists a block as a JSON file using an atomic write-then-rename strategy.
      *
      * <ol>
@@ -312,6 +356,8 @@ public final class FileSystemStorage implements BlockchainStorage {
         return loadBlockByHash(hash).isPresent();
     }
 
+    // ─── Private helpers ──────────────────────────────────────────────────────
+
     /**
      * Returns the number of block JSON files present in the data directory.
      *
@@ -386,8 +432,6 @@ public final class FileSystemStorage implements BlockchainStorage {
         }
     }
 
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
     /**
      * Computes the {@link Path} for a block file given its zero-based index.
      *
@@ -417,36 +461,6 @@ public final class FileSystemStorage implements BlockchainStorage {
     }
 
     /**
-     * Resolves a raw path string to a canonical absolute {@link Path}.
-     *
-     * <p>Passes the string through {@link java.io.File#getCanonicalPath()} first,
-     * which resolves {@code ..} segments and symlinks and produces a safe absolute
-     * path string that SpotBugs no longer considers tainted for PATH_TRAVERSAL_IN.
-     * Only then is the result passed to {@link Paths#get(String, String...)}.</p>
-     *
-     * @param rawPath the raw path string supplied by the caller
-     * @return a canonical, absolute, normalized {@link Path}
-     * @throws BlockValidationException if the OS cannot resolve the canonical path
-     */
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-        value = "PATH_TRAVERSAL_IN",
-        justification = "The raw path is sanitized via File.getCanonicalPath() which "
-            + "resolves all '..' components and symlinks. The resulting canonical path "
-            + "is used only as the storage root directory, not to serve arbitrary files "
-            + "to callers. This is the correct fix, not a suppression of a real issue.")
-    private static Path resolveCanonical(String rawPath) {
-        try {
-            String canonical = new java.io.File(rawPath).getCanonicalPath();
-            return Paths.get(canonical);
-        } catch (IOException ex) {
-            throw new BlockValidationException(
-                "FileSystemStorage: cannot resolve canonical path for '"
-                    + rawPath + "': " + ex.getMessage(),
-                ex, null);
-        }
-    }
-
-    /**
      * Ensures the data directory exists, creating it (and all parents) if needed.
      *
      * @throws BlockValidationException if the directory cannot be created
@@ -461,20 +475,6 @@ public final class FileSystemStorage implements BlockchainStorage {
                     + dataDirectory + ": " + ex.getMessage(),
                 ex, null);
         }
-    }
-
-    /**
-     * Compares two hex-encoded hash strings in constant time to prevent
-     * timing side-channel attacks (NFR-SEC-03).
-     *
-     * @param a first hash hex string
-     * @param b second hash hex string
-     * @return {@code true} if both strings represent the same hash value
-     */
-    private static boolean constantTimeHashEquals(String a, String b) {
-        return java.security.MessageDigest.isEqual(
-            a.getBytes(StandardCharsets.UTF_8),
-            b.getBytes(StandardCharsets.UTF_8));
     }
 
     /**

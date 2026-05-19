@@ -8,22 +8,12 @@ import com.privatechain.core.model.BlockHeader;
 import com.privatechain.core.model.Transaction;
 import com.privatechain.core.spi.BlockchainStorage;
 import com.privatechain.core.spi.ConsensusEngine;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.TreeMap;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Shared contract tests for built-in {@link ConsensusEngine} implementations.

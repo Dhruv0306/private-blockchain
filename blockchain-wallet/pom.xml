@@ -44,6 +44,14 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- SpotBugs annotations (@SuppressFBWarnings) ─────────────────────── -->
+        <!-- provided scope: annotation is compile-time only; zero runtime footprint. -->
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
     </dependencies>
 
 </project>

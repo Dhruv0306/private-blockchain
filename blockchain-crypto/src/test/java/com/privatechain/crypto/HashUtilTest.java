@@ -4,11 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link HashUtil} covering SHA-256, SHA-3-256, and double-SHA-256
@@ -21,6 +17,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HashUtilTest {
 
     // ─── Constructor not Callable for Utility class ───────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("sha256 throughput is >= 50,000 hashes/sec on a single thread (NFR-PERF-04)")
+    void sha256ThroughputSmoke() {
+        // Warm up the JIT and BouncyCastle provider so the measurement is not
+        // dominated by class-loading and JIT-compilation on a cold JVM.
+        for (int i = 0; i < 2_000; i++) {
+            HashUtil.sha256("warmup-" + i);
+        }
+
+        // Measure 10,000 hashes on warm code.
+        // NFR-PERF-04 requires >= 50,000 hashes/sec; 10k in < 1s satisfies that bar.
+        int count = 10_000;
+        long start = System.nanoTime();
+        for (int i = 0; i < count; i++) {
+            HashUtil.sha256("block-hash-input-" + i);
+        }
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+
+        assertTrue(elapsedMs < 1000,
+            "10,000 sha256 calls took " + elapsedMs + "ms after warm-up — expected < 1000ms");
+    }
+
+    // ─── SHA-256 — string overload ────────────────────────────────────────────
 
     @Nested
     @DisplayName("HashUtil()")
@@ -37,7 +57,7 @@ class HashUtilTest {
         }
     }
 
-    // ─── SHA-256 — string overload ────────────────────────────────────────────
+    // ─── SHA-256 — byte[] overload ────────────────────────────────────────────
 
     @Nested
     @DisplayName("sha256(String)")
@@ -91,7 +111,7 @@ class HashUtilTest {
         }
     }
 
-    // ─── SHA-256 — byte[] overload ────────────────────────────────────────────
+    // ─── SHA-3-256 ────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("sha256(byte[])")
@@ -125,7 +145,7 @@ class HashUtilTest {
         }
     }
 
-    // ─── SHA-3-256 ────────────────────────────────────────────────────────────
+    // ─── Double-SHA-256 ───────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("sha3_256")
@@ -173,7 +193,7 @@ class HashUtilTest {
         }
     }
 
-    // ─── Double-SHA-256 ───────────────────────────────────────────────────────
+    // ─── Performance smoke test ───────────────────────────────────────────────
 
     @Nested
     @DisplayName("doubleSha256")
@@ -227,32 +247,8 @@ class HashUtilTest {
         @DisplayName("empty string produces distinct double-hash")
         void emptyStringDoubleHash() {
             String single = HashUtil.sha256("");
-            String dbl    = HashUtil.doubleSha256("");
+            String dbl = HashUtil.doubleSha256("");
             assertFalse(single.equals(dbl));
         }
-    }
-
-    // ─── Performance smoke test ───────────────────────────────────────────────
-
-    @Test
-    @DisplayName("sha256 throughput is >= 50,000 hashes/sec on a single thread (NFR-PERF-04)")
-    void sha256ThroughputSmoke() {
-        // Warm up the JIT and BouncyCastle provider so the measurement is not
-        // dominated by class-loading and JIT-compilation on a cold JVM.
-        for (int i = 0; i < 2_000; i++) {
-            HashUtil.sha256("warmup-" + i);
-        }
-
-        // Measure 10,000 hashes on warm code.
-        // NFR-PERF-04 requires >= 50,000 hashes/sec; 10k in < 1s satisfies that bar.
-        int count = 10_000;
-        long start = System.nanoTime();
-        for (int i = 0; i < count; i++) {
-            HashUtil.sha256("block-hash-input-" + i);
-        }
-        long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-
-        assertTrue(elapsedMs < 1000,
-            "10,000 sha256 calls took " + elapsedMs + "ms after warm-up — expected < 1000ms");
     }
 }

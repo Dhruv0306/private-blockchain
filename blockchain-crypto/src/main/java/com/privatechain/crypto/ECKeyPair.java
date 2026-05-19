@@ -47,7 +47,9 @@ public final class ECKeyPair {
 
     // ─── Fields ───────────────────────────────────────────────────────────────
 
-    /** The JCA public key object. */
+    /**
+     * The JCA public key object.
+     */
     private final PublicKey publicKey;
 
     /**

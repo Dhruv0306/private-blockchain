@@ -7,12 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.security.PublicKey;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link AddressUtil} covering address derivation from a public key,
@@ -29,7 +24,7 @@ class AddressUtilTest {
 
     @BeforeEach
     void setUp() {
-        keyPair   = KeyPairGenerator.generateECKeyPair();
+        keyPair = KeyPairGenerator.generateECKeyPair();
         publicKey = keyPair.getPublicKey();
     }
 
@@ -138,7 +133,7 @@ class AddressUtilTest {
         @DisplayName("address produced by byte[] overload matches PublicKey overload")
         void byteOverloadMatchesPublicKeyOverload() {
             String fromPublicKey = AddressUtil.deriveAddress(publicKey);
-            String fromBytes     = AddressUtil.deriveAddress(publicKey.getEncoded(), (byte) 0x00);
+            String fromBytes = AddressUtil.deriveAddress(publicKey.getEncoded(), (byte) 0x00);
             assertEquals(fromPublicKey, fromBytes,
                 "both overloads with main net version byte must produce identical addresses");
         }
@@ -229,7 +224,7 @@ class AddressUtilTest {
         void multipleAddressesAllValid() {
             for (int i = 0; i < 10; i++) {
                 ECKeyPair kp = KeyPairGenerator.generateECKeyPair();
-                String addr  = AddressUtil.deriveAddress(kp.getPublicKey());
+                String addr = AddressUtil.deriveAddress(kp.getPublicKey());
                 assertTrue(AddressUtil.isAddressValid(addr),
                     "address #" + i + " must be self-validating");
             }

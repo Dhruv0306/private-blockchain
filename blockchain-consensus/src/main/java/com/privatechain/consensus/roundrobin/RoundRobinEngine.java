@@ -29,7 +29,7 @@ public final class RoundRobinEngine implements ConsensusEngine {
      * Creates a round-robin engine with the supplied peer order.
      *
      * @param peers ordered peer list used for slot rotation
-     * @throws NullPointerException if {@code peers} is null
+     * @throws NullPointerException     if {@code peers} is null
      * @throws IllegalArgumentException if the collection contains blank entries
      */
     public RoundRobinEngine(List<String> peers) {
@@ -53,7 +53,7 @@ public final class RoundRobinEngine implements ConsensusEngine {
      * @param chain the current blockchain state
      * @return {@code true} if the block is valid for this engine
      * @throws NullPointerException if {@code block} or {@code chain} is null
-     * @throws ConsensusException if the peer list is empty
+     * @throws ConsensusException   if the peer list is empty
      */
     @Override
     public boolean validateBlock(Block block, Blockchain chain) {
@@ -78,11 +78,11 @@ public final class RoundRobinEngine implements ConsensusEngine {
     /**
      * Produces a new block for the next round-robin slot.
      *
-     * @param transactions ordered transactions to include in the block
+     * @param transactions  ordered transactions to include in the block
      * @param previousBlock the current chain tip
      * @return a newly produced block
      * @throws NullPointerException if {@code transactions} or {@code previousBlock} is null
-     * @throws ConsensusException if the peer list is empty
+     * @throws ConsensusException   if the peer list is empty
      */
     @Override
     public Block mineBlock(List<Transaction> transactions, Block previousBlock) {

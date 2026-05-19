@@ -30,7 +30,9 @@ import java.util.Objects;
  */
 public final class ProofOfWorkEngine implements ConsensusEngine {
 
-    /** Default difficulty in leading zero bits. */
+    /**
+     * Default difficulty in leading zero bits.
+     */
     public static final int DEFAULT_DIFFICULTY = 4;
 
     private final int difficulty;
@@ -93,11 +95,11 @@ public final class ProofOfWorkEngine implements ConsensusEngine {
      * Mines a new block by searching for a nonce that satisfies the configured
      * leading-zero-bit target.
      *
-     * @param transactions ordered transactions to include in the block
+     * @param transactions  ordered transactions to include in the block
      * @param previousBlock the current chain tip
      * @return a newly mined block
      * @throws NullPointerException if {@code transactions} or {@code previousBlock} is null
-     * @throws ConsensusException if mining is interrupted or the nonce search is exhausted
+     * @throws ConsensusException   if mining is interrupted or the nonce search is exhausted
      */
     @Override
     public Block mineBlock(List<Transaction> transactions, Block previousBlock) {

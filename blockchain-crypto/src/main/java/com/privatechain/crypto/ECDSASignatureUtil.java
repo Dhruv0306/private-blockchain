@@ -2,13 +2,7 @@ package com.privatechain.crypto;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Security;
-import java.security.SignatureException;
+import java.security.*;
 import java.util.Objects;
 
 /**
@@ -42,10 +36,14 @@ import java.util.Objects;
  */
 public final class ECDSASignatureUtil {
 
-    /** JCA algorithm identifier for SHA-256 with ECDSA. */
+    /**
+     * JCA algorithm identifier for SHA-256 with ECDSA.
+     */
     private static final String SIGNATURE_ALGORITHM = "SHA256withECDSA";
 
-    /** BouncyCastle JCA provider name. */
+    /**
+     * BouncyCastle JCA provider name.
+     */
     private static final String BC_PROVIDER = "BC";
 
     static {

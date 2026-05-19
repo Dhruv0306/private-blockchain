@@ -152,6 +152,47 @@ public final class LevelDBStorage implements BlockchainStorage, AutoCloseable {
     // ─── BlockchainStorage implementation ────────────────────────────────────
 
     /**
+     * Encodes a block index as a 5-byte composite key:
+     * {@code [KEY_PREFIX_BLOCK (1 byte)] + [index as big-endian 4 bytes]}.
+     *
+     * <p>Big-endian encoding ensures LevelDB's lexicographic ordering of keys
+     * corresponds to ascending block index order.</p>
+     *
+     * @param index block index (&ge; 0)
+     * @return 5-byte key array
+     */
+    private static byte[] blockKey(int index) {
+        ByteBuffer buf = ByteBuffer.allocate(KEY_LENGTH).order(ByteOrder.BIG_ENDIAN);
+        buf.put(KEY_PREFIX_BLOCK);
+        buf.putInt(index);
+        return buf.array();
+    }
+
+    /**
+     * Returns {@code true} if the given key was produced by {@link #blockKey(int)}.
+     *
+     * @param key raw key bytes from the iterator
+     * @return {@code true} if the key has the block prefix
+     */
+    private static boolean isBlockKey(byte[] key) {
+        return key != null && key.length == KEY_LENGTH && key[0] == KEY_PREFIX_BLOCK;
+    }
+
+    /**
+     * Compares two hex-encoded hash strings in constant time to prevent timing
+     * side-channel attacks (NFR-SEC-03).
+     *
+     * @param a first hash string
+     * @param b second hash string
+     * @return {@code true} if both strings represent the same hash
+     */
+    private static boolean constantTimeHashEquals(String a, String b) {
+        return java.security.MessageDigest.isEqual(
+            a.getBytes(StandardCharsets.UTF_8),
+            b.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
      * Persists a block atomically using a LevelDB {@link WriteBatch}.
      *
      * <p>Using a write batch guarantees that the block is either fully written or
@@ -279,6 +320,8 @@ public final class LevelDBStorage implements BlockchainStorage, AutoCloseable {
         }
     }
 
+    // ─── AutoCloseable ────────────────────────────────────────────────────────
+
     /**
      * Returns {@code true} if a block with the given hash exists.
      *
@@ -290,6 +333,8 @@ public final class LevelDBStorage implements BlockchainStorage, AutoCloseable {
     public boolean exists(String hash) {
         return loadBlockByHash(hash).isPresent();
     }
+
+    // ─── Key encoding helpers ─────────────────────────────────────────────────
 
     /**
      * Returns the number of stored blocks by counting block-keyed entries.
@@ -348,8 +393,6 @@ public final class LevelDBStorage implements BlockchainStorage, AutoCloseable {
         }
     }
 
-    // ─── AutoCloseable ────────────────────────────────────────────────────────
-
     /**
      * Closes the LevelDB database and releases the file lock.
      *
@@ -372,49 +415,6 @@ public final class LevelDBStorage implements BlockchainStorage, AutoCloseable {
         } finally {
             lock.writeLock().unlock();
         }
-    }
-
-    // ─── Key encoding helpers ─────────────────────────────────────────────────
-
-    /**
-     * Encodes a block index as a 5-byte composite key:
-     * {@code [KEY_PREFIX_BLOCK (1 byte)] + [index as big-endian 4 bytes]}.
-     *
-     * <p>Big-endian encoding ensures LevelDB's lexicographic ordering of keys
-     * corresponds to ascending block index order.</p>
-     *
-     * @param index block index (&ge; 0)
-     * @return 5-byte key array
-     */
-    private static byte[] blockKey(int index) {
-        ByteBuffer buf = ByteBuffer.allocate(KEY_LENGTH).order(ByteOrder.BIG_ENDIAN);
-        buf.put(KEY_PREFIX_BLOCK);
-        buf.putInt(index);
-        return buf.array();
-    }
-
-    /**
-     * Returns {@code true} if the given key was produced by {@link #blockKey(int)}.
-     *
-     * @param key raw key bytes from the iterator
-     * @return {@code true} if the key has the block prefix
-     */
-    private static boolean isBlockKey(byte[] key) {
-        return key != null && key.length == KEY_LENGTH && key[0] == KEY_PREFIX_BLOCK;
-    }
-
-    /**
-     * Compares two hex-encoded hash strings in constant time to prevent timing
-     * side-channel attacks (NFR-SEC-03).
-     *
-     * @param a first hash string
-     * @param b second hash string
-     * @return {@code true} if both strings represent the same hash
-     */
-    private static boolean constantTimeHashEquals(String a, String b) {
-        return java.security.MessageDigest.isEqual(
-            a.getBytes(StandardCharsets.UTF_8),
-            b.getBytes(StandardCharsets.UTF_8));
     }
 
     /**

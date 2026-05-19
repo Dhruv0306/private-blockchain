@@ -51,7 +51,7 @@ public final class ConsensusSupport {
      * @param label  human-readable label used in exception messages
      * @param sort   whether to sort the copy into deterministic lexicographic order
      * @return an immutable list containing the validated values
-     * @throws NullPointerException if {@code values} or any element is null
+     * @throws NullPointerException     if {@code values} or any element is null
      * @throws IllegalArgumentException if any element is blank
      */
     public static List<String> copyAndValidate(Collection<String> values, String label, boolean sort) {
@@ -113,11 +113,11 @@ public final class ConsensusSupport {
      *                              {@code timestamp} is null
      */
     public static Block buildBlock(Block previousBlock,
-                            List<Transaction> transactions,
-                            int bits,
-                            long nonce,
-                            String minerAddress,
-                            Instant timestamp) {
+                                   List<Transaction> transactions,
+                                   int bits,
+                                   long nonce,
+                                   String minerAddress,
+                                   Instant timestamp) {
         Objects.requireNonNull(previousBlock, "previousBlock must not be null");
         Objects.requireNonNull(transactions, "transactions must not be null");
         Objects.requireNonNull(timestamp, "timestamp must not be null");
@@ -157,7 +157,7 @@ public final class ConsensusSupport {
      * at bit precision instead of assuming a nibble-aligned prefix. This keeps the
      * helper useful for both coarse and fine-grained difficulty settings.</p>
      *
-     * @param hexHash        lowercase hex-encoded SHA-256 hash
+     * @param hexHash         lowercase hex-encoded SHA-256 hash
      * @param leadingZeroBits required number of leading zero bits
      * @return {@code true} if the hash satisfies the requested prefix constraint
      * @throws NullPointerException if {@code hexHash} is null
