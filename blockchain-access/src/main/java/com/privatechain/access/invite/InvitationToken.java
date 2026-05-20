@@ -61,9 +61,9 @@ public final class InvitationToken {
     /**
      * Private constructor; use factory methods instead.
      *
-     * @param nodeId               the node ID being invited (non-null)
-     * @param expiryEpochSeconds   the expiry time in Unix epoch seconds (positive)
-     * @param signature            the ECDSA signature (non-null, non-empty)
+     * @param nodeId             the node ID being invited (non-null)
+     * @param expiryEpochSeconds the expiry time in Unix epoch seconds (positive)
+     * @param signature          the ECDSA signature (non-null, non-empty)
      */
     private InvitationToken(String nodeId, long expiryEpochSeconds, byte[] signature) {
         this.nodeId = nodeId;
@@ -149,6 +149,54 @@ public final class InvitationToken {
     // ─── Accessors ────────────────────────────────────────────────────────────
 
     /**
+     * Converts a 4-byte big-endian sequence to an integer.
+     */
+    private static int bytesToInt(byte[] bytes, int offset) {
+        return ((bytes[offset] & 0xFF) << 24)
+            | ((bytes[offset + 1] & 0xFF) << 16)
+            | ((bytes[offset + 2] & 0xFF) << 8)
+            | (bytes[offset + 3] & 0xFF);
+    }
+
+    /**
+     * Converts an 8-byte big-endian sequence to a long.
+     */
+    private static long bytesToLong(byte[] bytes, int offset) {
+        return ((long) (bytes[offset] & 0xFF) << 56)
+            | ((long) (bytes[offset + 1] & 0xFF) << 48)
+            | ((long) (bytes[offset + 2] & 0xFF) << 40)
+            | ((long) (bytes[offset + 3] & 0xFF) << 32)
+            | ((long) (bytes[offset + 4] & 0xFF) << 24)
+            | ((long) (bytes[offset + 5] & 0xFF) << 16)
+            | ((long) (bytes[offset + 6] & 0xFF) << 8)
+            | (bytes[offset + 7] & 0xFF);
+    }
+
+    /**
+     * Writes an integer to a 4-byte big-endian sequence.
+     */
+    private static void intToBytes(int value, byte[] bytes, int offset) {
+        bytes[offset] = (byte) ((value >> 24) & 0xFF);
+        bytes[offset + 1] = (byte) ((value >> 16) & 0xFF);
+        bytes[offset + 2] = (byte) ((value >> 8) & 0xFF);
+        bytes[offset + 3] = (byte) (value & 0xFF);
+    }
+
+    /**
+     * Writes a long to an 8-byte big-endian sequence.
+     */
+    private static void longToBytes(long value, byte[] bytes, int offset) {
+        bytes[offset] = (byte) ((value >> 56) & 0xFF);
+        bytes[offset + 1] = (byte) ((value >> 48) & 0xFF);
+        bytes[offset + 2] = (byte) ((value >> 40) & 0xFF);
+        bytes[offset + 3] = (byte) ((value >> 32) & 0xFF);
+        bytes[offset + 4] = (byte) ((value >> 24) & 0xFF);
+        bytes[offset + 5] = (byte) ((value >> 16) & 0xFF);
+        bytes[offset + 6] = (byte) ((value >> 8) & 0xFF);
+        bytes[offset + 7] = (byte) (value & 0xFF);
+    }
+
+    /**
      * Returns the invited node ID.
      *
      * @return the node ID that will be added to the allowlist upon token acceptance
@@ -174,6 +222,8 @@ public final class InvitationToken {
     public Instant getExpiryInstant() {
         return Instant.ofEpochSecond(expiryEpochSeconds);
     }
+
+    // ─── Object overrides ─────────────────────────────────────────────────────
 
     /**
      * Returns the ECDSA signature bytes (DER-encoded).
@@ -228,6 +278,8 @@ public final class InvitationToken {
         return System.currentTimeMillis() > expiryEpochSeconds * 1000L;
     }
 
+    // ─── Internal encoding helpers ────────────────────────────────────────────
+
     /**
      * Returns the payload that was signed: {@code nodeId || expiryEpochSeconds}.
      *
@@ -243,8 +295,6 @@ public final class InvitationToken {
         longToBytes(expiryEpochSeconds, payload, nodeIdBytes.length);
         return payload;
     }
-
-    // ─── Object overrides ─────────────────────────────────────────────────────
 
     /**
      * {@inheritDoc}
@@ -280,56 +330,6 @@ public final class InvitationToken {
             ", expiryEpochSeconds=" + expiryEpochSeconds +
             ", signatureLength=" + signature.length +
             '}';
-    }
-
-    // ─── Internal encoding helpers ────────────────────────────────────────────
-
-    /**
-     * Converts a 4-byte big-endian sequence to an integer.
-     */
-    private static int bytesToInt(byte[] bytes, int offset) {
-        return ((bytes[offset] & 0xFF) << 24)
-            | ((bytes[offset + 1] & 0xFF) << 16)
-            | ((bytes[offset + 2] & 0xFF) << 8)
-            | (bytes[offset + 3] & 0xFF);
-    }
-
-    /**
-     * Converts an 8-byte big-endian sequence to a long.
-     */
-    private static long bytesToLong(byte[] bytes, int offset) {
-        return ((long) (bytes[offset] & 0xFF) << 56)
-            | ((long) (bytes[offset + 1] & 0xFF) << 48)
-            | ((long) (bytes[offset + 2] & 0xFF) << 40)
-            | ((long) (bytes[offset + 3] & 0xFF) << 32)
-            | ((long) (bytes[offset + 4] & 0xFF) << 24)
-            | ((long) (bytes[offset + 5] & 0xFF) << 16)
-            | ((long) (bytes[offset + 6] & 0xFF) << 8)
-            | (bytes[offset + 7] & 0xFF);
-    }
-
-    /**
-     * Writes an integer to a 4-byte big-endian sequence.
-     */
-    private static void intToBytes(int value, byte[] bytes, int offset) {
-        bytes[offset] = (byte) ((value >> 24) & 0xFF);
-        bytes[offset + 1] = (byte) ((value >> 16) & 0xFF);
-        bytes[offset + 2] = (byte) ((value >> 8) & 0xFF);
-        bytes[offset + 3] = (byte) (value & 0xFF);
-    }
-
-    /**
-     * Writes a long to an 8-byte big-endian sequence.
-     */
-    private static void longToBytes(long value, byte[] bytes, int offset) {
-        bytes[offset] = (byte) ((value >> 56) & 0xFF);
-        bytes[offset + 1] = (byte) ((value >> 48) & 0xFF);
-        bytes[offset + 2] = (byte) ((value >> 40) & 0xFF);
-        bytes[offset + 3] = (byte) ((value >> 32) & 0xFF);
-        bytes[offset + 4] = (byte) ((value >> 24) & 0xFF);
-        bytes[offset + 5] = (byte) ((value >> 16) & 0xFF);
-        bytes[offset + 6] = (byte) ((value >> 8) & 0xFF);
-        bytes[offset + 7] = (byte) (value & 0xFF);
     }
 }
 

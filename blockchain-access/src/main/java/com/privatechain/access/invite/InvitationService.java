@@ -70,9 +70,9 @@ public class InvitationService {
      * would have read-only access to the service or verify tokens using just the
      * admin's public key.</p>
      *
-     * @param adminKeyPair       the admin node's key pair (non-null)
-     * @param permissionManager  reference to the permission manager (non-null)
-     * @param allowlistManager   reference to the allowlist manager (non-null)
+     * @param adminKeyPair      the admin node's key pair (non-null)
+     * @param permissionManager reference to the permission manager (non-null)
+     * @param allowlistManager  reference to the allowlist manager (non-null)
      * @throws NullPointerException if any parameter is null
      */
     public InvitationService(ECKeyPair adminKeyPair, PermissionManager permissionManager,
@@ -83,6 +83,20 @@ public class InvitationService {
     }
 
     // ─── Token generation ─────────────────────────────────────────────────────
+
+    /**
+     * Writes a long to an 8-byte big-endian sequence.
+     */
+    private static void longToBytes(long value, byte[] bytes, int offset) {
+        bytes[offset] = (byte) ((value >> 56) & 0xFF);
+        bytes[offset + 1] = (byte) ((value >> 48) & 0xFF);
+        bytes[offset + 2] = (byte) ((value >> 40) & 0xFF);
+        bytes[offset + 3] = (byte) ((value >> 32) & 0xFF);
+        bytes[offset + 4] = (byte) ((value >> 24) & 0xFF);
+        bytes[offset + 5] = (byte) ((value >> 16) & 0xFF);
+        bytes[offset + 6] = (byte) ((value >> 8) & 0xFF);
+        bytes[offset + 7] = (byte) (value & 0xFF);
+    }
 
     /**
      * Generates a signed invitation token for a new node.
@@ -120,11 +134,13 @@ public class InvitationService {
         return InvitationToken.create(nodeId, expiryEpochSeconds, signature);
     }
 
+    // ─── Token verification ───────────────────────────────────────────────────
+
     /**
      * Convenience overload that generates a token valid for a specified duration from now.
      *
-     * @param nodeId           the node ID requesting to join (non-null, non-blank)
-     * @param validitySeconds  how many seconds from now the token should expire (positive)
+     * @param nodeId          the node ID requesting to join (non-null, non-blank)
+     * @param validitySeconds how many seconds from now the token should expire (positive)
      * @return an {@link InvitationToken} signed by the admin
      * @throws NullPointerException     if nodeId is null
      * @throws IllegalArgumentException if nodeId is blank or validitySeconds is non-positive
@@ -138,8 +154,6 @@ public class InvitationService {
         return generateToken(nodeId, expiryTime);
     }
 
-    // ─── Token verification ───────────────────────────────────────────────────
-
     /**
      * Verifies an invitation token: checks the signature and expiry.
      *
@@ -149,7 +163,7 @@ public class InvitationService {
      *
      * @param token the token to verify (non-null)
      * @return {@code true} if the token is valid and accepted; {@code false} if
-     *         the signature is invalid, the token is expired, or verification fails
+     * the signature is invalid, the token is expired, or verification fails
      * @throws NullPointerException if token is null
      */
     public boolean verifyToken(InvitationToken token) {
@@ -174,6 +188,8 @@ public class InvitationService {
 
         return true;
     }
+
+    // ─── Internal helpers ─────────────────────────────────────────────────────
 
     /**
      * Verifies an invitation token from an encoded (Base64) string.
@@ -200,8 +216,6 @@ public class InvitationService {
         }
     }
 
-    // ─── Internal helpers ─────────────────────────────────────────────────────
-
     /**
      * Builds the payload that is signed: {@code nodeId || expiryEpochSeconds}.
      *
@@ -215,20 +229,6 @@ public class InvitationService {
         System.arraycopy(nodeIdBytes, 0, payload, 0, nodeIdBytes.length);
         longToBytes(expiryEpochSeconds, payload, nodeIdBytes.length);
         return payload;
-    }
-
-    /**
-     * Writes a long to an 8-byte big-endian sequence.
-     */
-    private static void longToBytes(long value, byte[] bytes, int offset) {
-        bytes[offset] = (byte) ((value >> 56) & 0xFF);
-        bytes[offset + 1] = (byte) ((value >> 48) & 0xFF);
-        bytes[offset + 2] = (byte) ((value >> 40) & 0xFF);
-        bytes[offset + 3] = (byte) ((value >> 32) & 0xFF);
-        bytes[offset + 4] = (byte) ((value >> 24) & 0xFF);
-        bytes[offset + 5] = (byte) ((value >> 16) & 0xFF);
-        bytes[offset + 6] = (byte) ((value >> 8) & 0xFF);
-        bytes[offset + 7] = (byte) (value & 0xFF);
     }
 }
 

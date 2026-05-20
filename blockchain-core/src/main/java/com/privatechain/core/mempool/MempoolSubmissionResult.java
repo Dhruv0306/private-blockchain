@@ -39,6 +39,7 @@ public final class MempoolSubmissionResult {
 
     // ─── Fields ───────────────────────────────────────────────────────────────
     private final ValidationResult validationResult; // Non-null only when status == VALIDATION_FAILED
+
     /**
      * Private constructor.
      *

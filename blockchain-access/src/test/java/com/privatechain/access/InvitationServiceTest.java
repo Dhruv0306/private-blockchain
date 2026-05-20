@@ -5,14 +5,13 @@ import com.privatechain.access.invite.InvitationService;
 import com.privatechain.access.invite.InvitationToken;
 import com.privatechain.access.rbac.NodeRole;
 import com.privatechain.access.rbac.PermissionManager;
-import com.privatechain.crypto.KeyPairGenerator;
-import com.privatechain.crypto.ECKeyPair;
 import com.privatechain.core.spi.BlockchainStorage;
+import com.privatechain.crypto.ECKeyPair;
+import com.privatechain.crypto.KeyPairGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;

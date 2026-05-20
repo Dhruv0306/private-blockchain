@@ -77,8 +77,8 @@ public class PermissionManager {
      * <p>The assignment is immediately visible to all threads and is persisted
      * to the configured {@link BlockchainStorage} synchronously.</p>
      *
-     * @param nodeId  the unique node identifier (non-null, non-blank)
-     * @param role    the role to assign (non-null)
+     * @param nodeId the unique node identifier (non-null, non-blank)
+     * @param role   the role to assign (non-null)
      * @throws NullPointerException     if nodeId or role is null
      * @throws IllegalArgumentException if nodeId is blank
      */
