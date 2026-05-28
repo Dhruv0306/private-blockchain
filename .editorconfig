@@ -11,7 +11,7 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
 
-[*.{yml,yaml,xml,properties}]
+[*.{yml,yaml,xml,properties,proto}]
 indent_style = space
 indent_size = 4
 

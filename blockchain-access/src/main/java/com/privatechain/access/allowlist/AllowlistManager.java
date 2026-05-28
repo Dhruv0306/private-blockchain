@@ -1,18 +1,19 @@
 package com.privatechain.access.allowlist;
 
+import com.privatechain.access.invite.InvitationService;
+
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * Manages the allowlist of permitted node identifiers in a private blockchain network.
  *
- * <p>An allowlist is the set of node IDs which are permitted to send blocks, transactions,
- * and other network messages to this node. Messages from non-allowlisted nodes are
- * silently dropped before deserialization (FR-AC-01, NFR-SEC-04).
+ * <p>An allowlist is the set of node IDs which are permitted to participate in the
+ * private blockchain network. Messages from non-allowlisted nodes should be silently
+ * dropped before deserialization (FR-AC-01, NFR-SEC-04).
  *
- * <p>The allowlist is checked early in the message-processing pipeline in {@link
- * com.privatechain.network.rpc.NodeServer} to prevent resource exhaustion attacks
- * and maintain privacy in a permission-restricted network.</p>
+ * <p>The allowlist can be persisted to durable storage via {@link AllowlistStore},
+ * allowing membership changes to survive process restarts.</p>
  *
  * <h2>Thread safety</h2>
  * This class uses a {@link CopyOnWriteArraySet} for the allowlist, making it safe for
@@ -57,6 +58,9 @@ public class AllowlistManager {
 
     /**
      * Constructs an {@code AllowlistManager} pre-populated with initial node IDs.
+     *
+     * <p>To restore allowlist from persistent storage, use {@link #loadFromStore(AllowlistStore)}
+     * after construction.</p>
      *
      * @param initialNodes collection of node IDs to allowlist (non-null; may be empty)
      * @throws NullPointerException if initialNodes is null
@@ -182,6 +186,47 @@ public class AllowlistManager {
      */
     public void clear() {
         allowedNodes.clear();
+    }
+
+    // ─── Persistence ──────────────────────────────────────────────────────────
+
+    /**
+     * Loads allowlisted node IDs from persistent storage.
+     *
+     * <p>This method is typically called once at application startup to restore
+     * the allowlist from a previous session. It clears the current allowlist
+     * before loading persisted data.</p>
+     *
+     * @param store the persistent storage implementation (non-null)
+     * @throws NullPointerException if store is null
+     * @see AllowlistStore#load()
+     */
+    public void loadFromStore(AllowlistStore store) {
+        Objects.requireNonNull(store, "store must not be null");
+        Set<String> loaded = store.load();
+        allowedNodes.clear();
+        if (loaded != null) {
+            for (String nodeId : loaded) {
+                if (nodeId != null && !nodeId.isBlank()) {
+                    allowedNodes.add(nodeId);
+                }
+            }
+        }
+    }
+
+    /**
+     * Saves the current allowlist to persistent storage.
+     *
+     * <p>This method is called to durably persist changes to the allowlist.
+     * The set passed to the store contains all currently allowlisted node IDs.</p>
+     *
+     * @param store the persistent storage implementation (non-null)
+     * @throws NullPointerException if store is null
+     * @see AllowlistStore#save(Set)
+     */
+    public void saveToStore(AllowlistStore store) {
+        Objects.requireNonNull(store, "store must not be null");
+        store.save(new HashSet<>(allowedNodes));
     }
 
     // ─── Invitation verification ──────────────────────────────────────────────
