@@ -8,6 +8,9 @@ Desktop.ini
 .vscode/
 *.iml
 
+### Worktrees
+.worktrees/
+
 ### Java / Maven build output
 target/
 *.class
