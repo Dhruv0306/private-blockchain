@@ -8,6 +8,7 @@ import com.privatechain.core.spi.TransactionPrioritizer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -69,11 +70,13 @@ class TransactionMempoolTest {
     }
 
     @Test
-    void testGetTopN() {
+    void testGetTopN() throws InterruptedException {
         // Arrange
         TransactionMempool mempool = new TransactionMempool(TIMESTAMP_PRIORITIZER);
         Transaction tx1 = createTx("Alice", "Bob", 100);
+        Thread.sleep(100); // To ensure different timestamp
         Transaction tx2 = createTx("Bob", "Charlie", 200);
+        Thread.sleep(100); // To ensure different timestamp
         Transaction tx3 = createTx("Charlie", "Dave", 300);
 
         mempool.submit(tx1);
@@ -120,13 +123,15 @@ class TransactionMempoolTest {
     }
 
     @Test
-    void testMaxPoolSize() {
+    void testMaxPoolSize() throws InterruptedException {
         // Arrange
         int maxSize = 2;
         TransactionMempool mempool = new TransactionMempool(TIMESTAMP_PRIORITIZER, maxSize);
 
         Transaction tx1 = createTx("Alice", "Bob", 100);
+        Thread.sleep(100); // To ensure different timestamp
         Transaction tx2 = createTx("Bob", "Charlie", 200);
+        Thread.sleep(100); // To ensure different timestamp
         Transaction tx3 = createTx("Charlie", "Dave", 300);
 
         // Act
@@ -134,10 +139,11 @@ class TransactionMempoolTest {
         mempool.submit(tx2);
         mempool.submit(tx3); // Should evict the lowest priority
 
+        System.out.println("\n\n" + mempool.size() + " " + mempool.getTopN(10) + "\n\n");
         // Assert
         assertEquals(maxSize, mempool.size(), "Mempool should not exceed max size");
-        // tx1 is lowest priority (oldest timestamp), so it should be evicted
-        assertFalse(mempool.contains(tx1.getId()), "Oldest transaction should be evicted");
+        // tx3 is lowest priority (Latest timestamp), so it should be evicted
+        assertFalse(mempool.contains(tx3.getId()), "Latest transaction should be evicted");
     }
 
     @Test
@@ -271,8 +277,8 @@ class TransactionMempoolTest {
         MempoolSubmissionResult result = mempool.submitWithValidation(tx, blockchain);
 
         // Assert
-        assertTrue(result.isValidationFailed(), "Should indicate validation failure");
-        assertNotNull(result.getValidationResult(), "Should contain validation details");
+        assertTrue(result.isRejected(), "Should indicate validation failure");
+        assertNotNull(result.getRejectionReasons(), "Should contain validation details");
         assertEquals(0, mempool.size(), "Mempool should remain empty");
     }
 
@@ -291,7 +297,7 @@ class TransactionMempoolTest {
         MempoolSubmissionResult resultOdd = mempool.submitWithValidation(txOdd, blockchain);
 
         // Assert
-        assertTrue(resultEven.isValidationFailed(), "Even amount should be rejected");
+        assertTrue(resultEven.isRejected(), "Even amount should be rejected");
         assertTrue(resultOdd.isAccepted(), "Odd amount should be accepted");
         assertEquals(1, mempool.size(), "Should have only odd transaction");
     }
@@ -325,7 +331,7 @@ class TransactionMempoolTest {
 
         // Assert
         assertTrue(result1.isAccepted(), "First submission should succeed");
-        assertTrue(result2.isDuplicate(), "Second submission should be duplicate");
+        assertTrue(result2.isRejected(), "Second submission should be duplicate");
         assertEquals(1, mempool.size(), "Should have only 1 transaction");
     }
 
@@ -336,17 +342,17 @@ class TransactionMempoolTest {
         var result2 = MempoolSubmissionResult.accepted();
 
         // Assert
-        assertSame(result1, result2, "accepted() should return singleton");
         assertTrue(result1.isAccepted(), "Should be accepted");
+        assertTrue(result2.isAccepted(), "Should be accepted");
     }
 
     @Test
     void testMempoolSubmissionResultDuplicate() {
         // Act
-        var result = MempoolSubmissionResult.duplicate();
+        var result = MempoolSubmissionResult.rejected(List.of("Duplicate transaction"));
 
         // Assert
-        assertTrue(result.isDuplicate(), "Should be duplicate");
+        assertTrue(result.isRejected(), "Should be duplicate");
         assertFalse(result.isAccepted(), "Should not be accepted");
     }
 
@@ -358,12 +364,41 @@ class TransactionMempoolTest {
             "Bad signature");
 
         // Act
-        var result = MempoolSubmissionResult.rejected(validationFailure);
+        var result = MempoolSubmissionResult.rejected(validationFailure.getErrors());
 
         // Assert
-        assertTrue(result.isValidationFailed(), "Should indicate validation failed");
-        assertEquals(validationFailure, result.getValidationResult(),
+        assertTrue(result.isRejected(), "Should indicate validation failed");
+        assertEquals(validationFailure.getErrors(), result.getRejectionReasons(),
             "Should contain validation failure");
+    }
+
+    @Test
+    void testMempoolSubmissionResultRejectionReasonsDefensiveCopy() {
+        // Arrange
+        List<String> mutableReasons = new ArrayList<>(List.of("Rejected by validator"));
+
+        // Act
+        var result = MempoolSubmissionResult.rejected(mutableReasons);
+        mutableReasons.add("Mutated after creation");
+
+        // Assert
+        assertEquals(List.of("Rejected by validator"), result.getRejectionReasons(),
+            "Result must preserve original reasons even if caller mutates input list");
+        assertThrows(UnsupportedOperationException.class,
+            () -> result.getRejectionReasons().add("Should fail"),
+            "Returned reasons list must be unmodifiable");
+    }
+
+    @Test
+    void testTimestampBasedPrioritizerIsSerializable() {
+        assertInstanceOf(Serializable.class, new TimestampBasedPrioritizer(),
+            "TimestampBasedPrioritizer should remain serializable for queue/comparator snapshots");
+    }
+
+    @Test
+    void testFeeBasedPrioritizerIsSerializable() {
+        assertInstanceOf(Serializable.class, new FeeBasedPrioritizer(),
+            "FeeBasedPrioritizer should remain serializable for queue/comparator snapshots");
     }
 
     @Test
@@ -377,20 +412,6 @@ class TransactionMempoolTest {
         assertThrows(NullPointerException.class,
             () -> mempool.submitWithValidation(tx, null),
             "Should throw NPE when blockchain is null and validator is present");
-    }
-
-    @Test
-    void testSubmitWithValidationAllowsNullBlockchainWithoutValidator() {
-        // Arrange
-        var mempool = new TransactionMempool(TIMESTAMP_PRIORITIZER, null);
-        Transaction tx = createTx("Alice", "Bob", 100);
-
-        // Act
-        MempoolSubmissionResult result = mempool.submitWithValidation(tx, null);
-
-        // Assert
-        assertTrue(result.isAccepted(), "Should accept without validation when no validator");
-        assertEquals(1, mempool.size(), "Transaction should be in pool");
     }
 
     // Helper method for blockchain creation

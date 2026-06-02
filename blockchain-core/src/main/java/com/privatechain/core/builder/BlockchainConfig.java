@@ -7,6 +7,7 @@ import com.privatechain.core.spi.ConsensusEngine;
 import com.privatechain.core.spi.TransactionPrioritizer;
 import com.privatechain.core.spi.TransactionValidator;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -15,30 +16,24 @@ import java.util.Objects;
  * Fluent builder and single assembly point for all blockchain subsystems.
  *
  * <p>{@code BlockchainConfig} is the <em>only</em> place where modules are composed
- * (design.md §1 — Explicit Wiring). There is no global state, no service-locator,
- * and no classpath scanning. Every dependency is provided explicitly via the builder
- * (FR-CFG-01).</p>
+ * (design.md §1 — Explicit Wiring). No global state, no service-locator, no classpath
+ * scanning. Every dependency is provided explicitly via the builder (FR-CFG-01).</p>
  *
  * <h2>Minimum viable setup (FR-CFG-02)</h2>
  * <pre>{@code
- * // Zero-config: in-memory PoW chain with sensible defaults
  * BlockchainNode node = BlockchainConfig.builder().build();
  * node.start();
  * }</pre>
  *
- * <h2>Full configuration</h2>
- * <pre>{@code
- * BlockchainNode node = BlockchainConfig.builder()
- *     .consensusEngine(new ProofOfAuthorityEngine(authorizedAddresses))
- *     .transactionValidator(new SignatureTransactionValidator())
- *     .transactionValidator(new BalanceValidator())   // chained automatically
- *     .storage(new LevelDBStorage("/data/chain"))
- *     .networkPort(8545)
- *     .blockTimeSeconds(5)
- *     .chainId("acme-supply-chain-v1")
- *     .eventListener(myAuditLogger)
- *     .build();
- * }</pre>
+ * <h2>Milestone 8 additions (T-066)</h2>
+ * <p>Two new builder parameters control the mempool lifecycle wired into
+ * {@link BlockchainNode}:</p>
+ * <ul>
+ *   <li>{@link Builder#mempoolTtl(Duration)} — TTL for unconfirmed transactions
+ *       (default: 30 minutes)</li>
+ *   <li>{@link Builder#maxMempoolSize(int)} — max pool capacity
+ *       (default: unbounded)</li>
+ * </ul>
  *
  * @see BlockchainNode
  * @since 1.0.0
@@ -62,6 +57,18 @@ public final class BlockchainConfig {
     private final int maxPeers;
     private final String chainId;
 
+    // ─── Mempool parameters (Milestone 8 — T-066) ────────────────────────────
+
+    /**
+     * TTL for unconfirmed transactions in the mempool.
+     */
+    private final Duration mempoolTtl;
+
+    /**
+     * Maximum number of transactions the mempool can hold.
+     */
+    private final int maxMempoolSize;
+
     // ─── Private constructor ──────────────────────────────────────────────────
 
     /**
@@ -81,12 +88,14 @@ public final class BlockchainConfig {
         this.difficulty = builder.difficulty;
         this.maxPeers = builder.maxPeers;
         this.chainId = builder.chainId;
+        this.mempoolTtl = builder.mempoolTtl;
+        this.maxMempoolSize = builder.maxMempoolSize;
     }
 
     // ─── Factory ──────────────────────────────────────────────────────────────
 
     /**
-     * Returns a new, pre-populated {@link Builder} with in-memory PoW defaults.
+     * Returns a new, pre-populated {@link Builder} with production-ready defaults.
      *
      * @return a mutable builder
      */
@@ -108,9 +117,6 @@ public final class BlockchainConfig {
     /**
      * Returns the ordered list of transaction validators.
      *
-     * <p>Validators are applied in the order they were registered via
-     * {@link Builder#transactionValidator(TransactionValidator)}.</p>
-     *
      * @return non-null, possibly empty, unmodifiable list
      */
     public List<TransactionValidator> getTransactionValidators() {
@@ -120,23 +126,18 @@ public final class BlockchainConfig {
     /**
      * Returns the configured storage backend.
      *
-     * <p>SpotBugs flags this as {@code EI_EXPOSE_REP} because the returned reference
-     * is mutable. This is intentional: {@link BlockchainStorage} is a public SPI
-     * designed to be shared with the {@link Blockchain} chain manager and sync components.
-     * The field is {@code private final}; the SPI contract governs thread safety.</p>
-     *
      * @return non-null {@link BlockchainStorage}
      */
     @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
         value = "EI_EXPOSE_REP",
-        justification = "BlockchainStorage is a public SPI intentionally exposed to "
-            + "the chain manager. Field is final; SPI contract defines thread safety.")
+        justification = "BlockchainStorage is a public SPI intentionally exposed. "
+            + "Field is final; SPI contract defines thread safety.")
     public BlockchainStorage getStorage() {
         return storage;
     }
 
     /**
-     * Returns the shared event bus instance.
+     * Returns the shared event bus instance. Always non-null.
      *
      * @return non-null {@link BlockchainEventBus}
      */
@@ -181,7 +182,7 @@ public final class BlockchainConfig {
     }
 
     /**
-     * Returns the PoW difficulty (number of leading zero bits required in a valid hash).
+     * Returns the PoW difficulty (leading zero bits required in a valid hash).
      *
      * @return difficulty (&ge; 1)
      */
@@ -207,6 +208,24 @@ public final class BlockchainConfig {
         return chainId;
     }
 
+    /**
+     * Returns the TTL for unconfirmed transactions in the mempool (Milestone 8).
+     *
+     * @return non-null, positive duration
+     */
+    public Duration getMempoolTtl() {
+        return mempoolTtl;
+    }
+
+    /**
+     * Returns the maximum number of transactions the mempool can hold (Milestone 8).
+     *
+     * @return max mempool size (&ge; 1)
+     */
+    public int getMaxMempoolSize() {
+        return maxMempoolSize;
+    }
+
     // ─── Builder ──────────────────────────────────────────────────────────────
 
     /**
@@ -217,22 +236,29 @@ public final class BlockchainConfig {
      */
     public static final class Builder {
 
-        private final List<TransactionValidator> transactionValidators = new ArrayList<>();
-        private final List<BlockchainEventListener> eventListeners = new ArrayList<>();
-        // Defaults: in-memory no-op consensus and no-op storage are set here as nulls
-        // and replaced by real defaults during build() to avoid circular dependencies
-        // with the consensus/storage modules that blockchain-core must not depend on.
+        // Resolved lazily in build() to avoid circular deps with consensus/storage modules
         private ConsensusEngine consensusEngine;
         private BlockchainStorage storage;
+
+        private final List<TransactionValidator> transactionValidators = new ArrayList<>();
+        private final List<BlockchainEventListener> eventListeners = new ArrayList<>();
+
+        // eventBus is always initialized — BlockchainNode may rely on non-null guarantee
         private BlockchainEventBus eventBus = new BlockchainEventBus();
+
+        // Prioritizer: null until build(); resolved to a timestamp-ordering lambda
+        // (same pattern as existing codebase — avoids importing mempool classes here)
         private TransactionPrioritizer transactionPrioritizer;
 
-        // Tunable parameters with sensible defaults
         private int networkPort = 8545;
         private int blockTimeSeconds = 10;
         private int difficulty = 4;
         private int maxPeers = 25;
         private String chainId = "private-blockchain";
+
+        // Mempool parameters (Milestone 8 — T-066)
+        private Duration mempoolTtl = Duration.ofMinutes(30);
+        private int maxMempoolSize = Integer.MAX_VALUE;
 
         /**
          * Package-private constructor — use {@link BlockchainConfig#builder()}.
@@ -243,40 +269,37 @@ public final class BlockchainConfig {
         /**
          * Sets the consensus engine.
          *
-         * <p>If not set, the default behavior is to accept all blocks (no-op engine),
-         * which is suitable for testing. Production chains must supply a real engine.</p>
+         * <p>If not set, defaults to a no-op engine (accepts all blocks).
+         * Production chains must supply a real engine.</p>
          *
-         * @param consensusEngine the engine to use (non-null)
+         * @param engine the engine to use (non-null)
          * @return this builder
-         * @throws NullPointerException if consensusEngine is null
+         * @throws NullPointerException if engine is null
          */
-        public Builder consensusEngine(ConsensusEngine consensusEngine) {
-            this.consensusEngine = Objects.requireNonNull(consensusEngine, "consensusEngine must not be null");
+        public Builder consensusEngine(ConsensusEngine engine) {
+            this.consensusEngine = Objects.requireNonNull(engine, "engine must not be null");
             return this;
         }
 
         /**
-         * Adds a transaction validator to the validation chain.
-         *
-         * <p>Validators are applied in the order they are added. The first validator
-         * to return a failure result short-circuits the chain.</p>
+         * Appends a transaction validator to the validation chain (FR-TX-03).
          *
          * @param validator the validator to add (non-null)
          * @return this builder
          * @throws NullPointerException if validator is null
          */
         public Builder transactionValidator(TransactionValidator validator) {
-            transactionValidators.add(Objects.requireNonNull(validator, "validator must not be null"));
+            transactionValidators.add(
+                Objects.requireNonNull(validator, "validator must not be null"));
             return this;
         }
 
         /**
-         * Sets the persistence backend.
+         * Sets the storage backend.
          *
-         * <p>If not set, the built node uses an in-memory storage implementation,
-         * which is ephemeral across JVM restarts.</p>
+         * <p>If not set, defaults to in-memory storage (ephemeral).</p>
          *
-         * @param storage the storage implementation to use (non-null)
+         * @param storage the persistence backend (non-null)
          * @return this builder
          * @throws NullPointerException if storage is null
          */
@@ -286,10 +309,7 @@ public final class BlockchainConfig {
         }
 
         /**
-         * Replaces the default event bus with a custom one.
-         *
-         * <p>Useful in testing to pre-populate listeners or to share the bus
-         * across multiple components.</p>
+         * Replaces the default event bus with a custom instance.
          *
          * @param eventBus the event bus to use (non-null)
          * @return this builder
@@ -301,10 +321,7 @@ public final class BlockchainConfig {
         }
 
         /**
-         * Registers an event listener to receive blockchain events.
-         *
-         * <p>All listeners registered here are automatically registered on the event bus
-         * during {@link #build()}.</p>
+         * Registers an event listener that will receive all blockchain events.
          *
          * @param listener the listener to register (non-null)
          * @return this builder
@@ -316,14 +333,15 @@ public final class BlockchainConfig {
         }
 
         /**
-         * Sets the transaction prioritizer used by the mempool.
+         * Sets the transaction prioritizer for mempool ordering (FR-MEMPOOL-02).
          *
-         * @param prioritizer the prioritizer to use (non-null)
+         * @param prioritizer the ordering strategy (non-null)
          * @return this builder
          * @throws NullPointerException if prioritizer is null
          */
         public Builder transactionPrioritizer(TransactionPrioritizer prioritizer) {
-            this.transactionPrioritizer = Objects.requireNonNull(prioritizer, "prioritizer must not be null");
+            this.transactionPrioritizer =
+                Objects.requireNonNull(prioritizer, "prioritizer must not be null");
             return this;
         }
 
@@ -336,7 +354,8 @@ public final class BlockchainConfig {
          */
         public Builder networkPort(int port) {
             if (port < 1024 || port > 65535) {
-                throw new IllegalArgumentException("Port must be in range [1024, 65535], got: " + port);
+                throw new IllegalArgumentException(
+                    "Port must be in range [1024, 65535], got: " + port);
             }
             this.networkPort = port;
             return this;
@@ -351,7 +370,8 @@ public final class BlockchainConfig {
          */
         public Builder blockTimeSeconds(int seconds) {
             if (seconds < 1) {
-                throw new IllegalArgumentException("blockTimeSeconds must be >= 1, got: " + seconds);
+                throw new IllegalArgumentException(
+                    "blockTimeSeconds must be >= 1, got: " + seconds);
             }
             this.blockTimeSeconds = seconds;
             return this;
@@ -366,7 +386,8 @@ public final class BlockchainConfig {
          */
         public Builder difficulty(int difficulty) {
             if (difficulty < 1) {
-                throw new IllegalArgumentException("difficulty must be >= 1, got: " + difficulty);
+                throw new IllegalArgumentException(
+                    "difficulty must be >= 1, got: " + difficulty);
             }
             this.difficulty = difficulty;
             return this;
@@ -381,16 +402,17 @@ public final class BlockchainConfig {
          */
         public Builder maxPeers(int maxPeers) {
             if (maxPeers < 1) {
-                throw new IllegalArgumentException("maxPeers must be >= 1, got: " + maxPeers);
+                throw new IllegalArgumentException(
+                    "maxPeers must be >= 1, got: " + maxPeers);
             }
             this.maxPeers = maxPeers;
             return this;
         }
 
         /**
-         * Sets the stable chain identifier (used to generate the genesis block).
+         * Sets the stable chain identifier embedded in the genesis block.
          *
-         * @param chainId non-null, non-blank chain ID
+         * @param chainId non-null, non-blank identifier
          * @return this builder
          * @throws NullPointerException     if chainId is null
          * @throws IllegalArgumentException if chainId is blank
@@ -405,39 +427,56 @@ public final class BlockchainConfig {
         }
 
         /**
+         * Sets the TTL for unconfirmed transactions in the mempool (Milestone 8).
+         *
+         * <p>Default: 30 minutes.</p>
+         *
+         * @param ttl positive duration (non-null)
+         * @return this builder
+         * @throws NullPointerException     if ttl is null
+         * @throws IllegalArgumentException if ttl is zero or negative
+         */
+        public Builder mempoolTtl(Duration ttl) {
+            Objects.requireNonNull(ttl, "mempoolTtl must not be null");
+            if (ttl.isZero() || ttl.isNegative()) {
+                throw new IllegalArgumentException("mempoolTtl must be positive, got: " + ttl);
+            }
+            this.mempoolTtl = ttl;
+            return this;
+        }
+
+        /**
+         * Sets the maximum pool capacity (Milestone 8).
+         *
+         * <p>Default: unbounded ({@link Integer#MAX_VALUE}).</p>
+         *
+         * @param maxSize max pool capacity (&ge; 1)
+         * @return this builder
+         * @throws IllegalArgumentException if maxSize &lt; 1
+         */
+        public Builder maxMempoolSize(int maxSize) {
+            if (maxSize < 1) {
+                throw new IllegalArgumentException(
+                    "maxMempoolSize must be >= 1, got: " + maxSize);
+            }
+            this.maxMempoolSize = maxSize;
+            return this;
+        }
+
+        /**
          * Builds the configuration and returns a ready-to-start {@link BlockchainNode}.
          *
-         * <p>This is the primary factory method for assembling a node. If
-         * {@code consensusEngine} or {@code storage} was not provided, sensible
-         * in-memory / no-op defaults are applied automatically (FR-CFG-02). All
-         * registered event listeners are wired to the event bus before the node is
-         * constructed.</p>
-         *
-         * <pre>{@code
-         * // Zero-config: in-memory PoW chain
-         * BlockchainNode node = BlockchainConfig.builder().build();
-         * node.start();
-         * }</pre>
+         * <p>Lazy defaults are resolved here so that {@code blockchain-core} never
+         * hard-imports classes from {@code blockchain-consensus} or
+         * {@code blockchain-storage}.</p>
          *
          * @return a configured, not-yet-started {@link BlockchainNode}
          */
         public BlockchainNode build() {
-            // Apply defaults for optional dependencies
-            if (consensusEngine == null) {
-                consensusEngine = new NoOpConsensusEngine();
-            }
-            if (storage == null) {
-                storage = new InMemoryBlockchainStorage();
-            }
-            if (transactionPrioritizer == null) {
-                transactionPrioritizer = (t1, t2) -> t1.getTimestamp().compareTo(t2.getTimestamp());
-            }
-
-            // Pre-register all listeners on the event bus
+            applyDefaults();
             for (BlockchainEventListener listener : eventListeners) {
                 eventBus.register(listener);
             }
-
             BlockchainConfig config = new BlockchainConfig(this);
             return new BlockchainNode(config);
         }
@@ -445,12 +484,26 @@ public final class BlockchainConfig {
         /**
          * Builds and returns the raw {@link BlockchainConfig} without wrapping it in a node.
          *
-         * <p>Use this variant when you need to inspect or share the configuration object
-         * before constructing a node, e.g., for testing or dependency-injection containers.</p>
+         * <p>Useful for testing or DI containers that construct the node separately.</p>
          *
          * @return a fully configured, immutable {@link BlockchainConfig}
          */
         public BlockchainConfig buildConfig() {
+            applyDefaults();
+            for (BlockchainEventListener listener : eventListeners) {
+                eventBus.register(listener);
+            }
+            return new BlockchainConfig(this);
+        }
+
+        /**
+         * Resolves all lazy defaults before construction.
+         *
+         * <p>Using a lambda for the prioritizer default avoids importing
+         * {@code TimestampBasedPrioritizer} here, keeping the builder free of
+         * mempool-package dependencies (same pattern as existing codebase).</p>
+         */
+        private void applyDefaults() {
             if (consensusEngine == null) {
                 consensusEngine = new NoOpConsensusEngine();
             }
@@ -458,29 +511,19 @@ public final class BlockchainConfig {
                 storage = new InMemoryBlockchainStorage();
             }
             if (transactionPrioritizer == null) {
-                transactionPrioritizer = (t1, t2) -> t1.getTimestamp().compareTo(t2.getTimestamp());
+                // Default: FIFO by timestamp — same lambda as existing BlockchainConfig
+                transactionPrioritizer =
+                    (t1, t2) -> t1.getTimestamp().compareTo(t2.getTimestamp());
             }
-            for (BlockchainEventListener listener : eventListeners) {
-                eventBus.register(listener);
-            }
-            return new BlockchainConfig(this);
         }
     }
 
-    // ─── Default no-op implementations (inner classes) ────────────────────────
-    // These live here to keep blockchain-core free of any external dependency.
-    // Real implementations are in blockchain-consensus and blockchain-storage.
-
-    // ─── Static imports needed by inner classes ───────────────────────────────
-    // (Compiler resolves simple names within the outer class, but inner classes
-    //  that reference model types need fully-qualified names OR the outer class
-    //  must import them — we add explicit FQN usages inside the inner classes.)
+    // ─── Default inner implementations ───────────────────────────────────────
+    // Keep blockchain-core free of any external dependency (design.md §7.1).
 
     /**
-     * A permissive no-op consensus engine that accepts every block without further checks.
-     * Used as the default when no engine is configured.
-     *
-     * <p><strong>NOT FOR PRODUCTION</strong> — provides no security guarantees.</p>
+     * Permissive no-op consensus engine — accepts every block unconditionally.
+     * Used as default when no engine is configured. NOT FOR PRODUCTION.
      */
     private static final class NoOpConsensusEngine implements ConsensusEngine {
 
@@ -492,16 +535,17 @@ public final class BlockchainConfig {
          * @return always {@code true}
          */
         @Override
-        public boolean validateBlock(com.privatechain.core.model.Block block, Blockchain chain) {
+        public boolean validateBlock(
+            com.privatechain.core.model.Block block, Blockchain chain) {
             return true;
         }
 
         /**
-         * Creates a new block with the given transactions without any mining.
+         * Creates a minimal block with no mining effort.
          *
          * @param transactions  transactions to include
          * @param previousBlock the current chain tip
-         * @return a new block linked to {@code previousBlock}
+         * @return a new block linked to previousBlock
          */
         @Override
         public com.privatechain.core.model.Block mineBlock(
@@ -521,7 +565,7 @@ public final class BlockchainConfig {
         }
 
         /**
-         * Returns the name of this engine.
+         * Returns the engine name.
          *
          * @return {@code "NoOp"}
          */
@@ -532,11 +576,8 @@ public final class BlockchainConfig {
     }
 
     /**
-     * In-memory storage backed by a {@link java.util.LinkedHashMap} keyed by block index.
-     * Provided as a default when no storage is configured; data is lost on JVM exit.
-     *
-     * <p><strong>NOT FOR PRODUCTION</strong> — use {@code LevelDBStorage} or
-     * {@code RocksDBStorage} for durable chains.</p>
+     * In-memory storage backed by a {@link java.util.LinkedHashMap}.
+     * Data is lost on JVM exit. NOT FOR PRODUCTION.
      */
     private static final class InMemoryBlockchainStorage implements BlockchainStorage {
 
@@ -545,18 +586,6 @@ public final class BlockchainConfig {
         private final java.util.concurrent.locks.ReadWriteLock lock =
             new java.util.concurrent.locks.ReentrantReadWriteLock();
 
-        /**
-         * Compares two hex-encoded hash strings in constant time to prevent
-         * timing side-channel attacks (NFR-SEC-03).
-         *
-         * <p>Uses {@link java.security.MessageDigest#isEqual(byte[], byte[])} which
-         * is guaranteed by the JDK to run in time proportional to the length of the
-         * arrays rather than the position of the first differing byte.</p>
-         *
-         * @param a first hash hex string
-         * @param b second hash hex string
-         * @return {@code true} if both strings represent the same hash value
-         */
         private static boolean constantTimeHashEquals(String a, String b) {
             return java.security.MessageDigest.isEqual(
                 a.getBytes(java.nio.charset.StandardCharsets.UTF_8),
@@ -589,24 +618,25 @@ public final class BlockchainConfig {
         public com.privatechain.core.model.Block loadBlock(int index) {
             lock.readLock().lock();
             try {
-                com.privatechain.core.model.Block block = store.get(index);
-                if (block == null) {
+                com.privatechain.core.model.Block b = store.get(index);
+                if (b == null) {
                     throw new java.util.NoSuchElementException("No block at index " + index);
                 }
-                return block;
+                return b;
             } finally {
                 lock.readLock().unlock();
             }
         }
 
         /**
-         * Loads a block by hash using a constant-time comparison to prevent timing attacks.
+         * Loads a block by hash.
          *
-         * @param hash the block hash
-         * @return an Optional containing the block if found
+         * @param hash the block hash to search for
+         * @return Optional containing the block if found
          */
         @Override
-        public java.util.Optional<com.privatechain.core.model.Block> loadBlockByHash(String hash) {
+        public java.util.Optional<com.privatechain.core.model.Block> loadBlockByHash(
+            String hash) {
             lock.readLock().lock();
             try {
                 return store.values().stream()
@@ -618,25 +648,24 @@ public final class BlockchainConfig {
         }
 
         /**
-         * Returns all blocks in ascending index order.
+         * Returns all blocks in insertion order.
          *
-         * @return ordered list of all blocks
+         * @return list of all blocks
          */
         @Override
         public List<com.privatechain.core.model.Block> loadAll() {
             lock.readLock().lock();
             try {
-                return new ArrayList<>(store.values());
+                return new java.util.ArrayList<>(store.values());
             } finally {
                 lock.readLock().unlock();
             }
         }
 
         /**
-         * Checks if a block with the given hash exists, using a constant-time
-         * comparison to prevent hash timing attacks.
+         * Checks whether a block with the given hash exists.
          *
-         * @param hash block hash to check
+         * @param hash the hash to look up
          * @return true if present
          */
         @Override

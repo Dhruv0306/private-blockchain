@@ -1,202 +1,146 @@
 package com.privatechain.core.mempool;
 
-import com.privatechain.core.spi.ValidationResult;
-
+import java.util.List;
 import java.util.Objects;
 
 /**
- * Result of a transaction submission attempt to the {@link TransactionMempool}.
+ * Immutable result of a {@link TransactionMempool#submitWithValidation} call.
  *
- * <p>A submission can succeed, fail validation, or represent a duplicate transaction.
- * Callers can inspect the result to determine whether to retry or take alternative action.</p>
+ * <p>Carries a boolean acceptance flag and, on rejection, the list of error messages
+ * produced by the configured {@link com.privatechain.core.spi.TransactionValidator}
+ * chain.</p>
  *
+ * <h2>Usage</h2>
  * <pre>{@code
  * MempoolSubmissionResult result = mempool.submitWithValidation(tx, blockchain);
- * if (result.isAccepted()) {
- *     // Transaction was added to the pool
- * } else if (result.isValidationFailed()) {
- *     // Transaction validation failed; details in result.getValidationResult()
- *     System.err.println("Validation error: " + result.getValidationResult().getErrors());
- * } else if (result.isDuplicate()) {
- *     // Transaction with this ID already exists in the pool
+ * if (!result.isAccepted()) {
+ *     log.warn("Transaction rejected: {}", result.getRejectionReasons());
  * }
  * }</pre>
  *
- * @see TransactionMempool#submitWithValidation
+ * @see TransactionMempool
  * @since 1.0.0
  */
 public final class MempoolSubmissionResult {
 
-    // ─── Status enumeration ───────────────────────────────────────────────────
-
-    private static final MempoolSubmissionResult ACCEPTED_INSTANCE =
-        new MempoolSubmissionResult(Status.ACCEPTED, null);
-
-    // ─── Singleton instances ──────────────────────────────────────────────────
-    private static final MempoolSubmissionResult DUPLICATE_INSTANCE =
-        new MempoolSubmissionResult(Status.DUPLICATE, null);
-    private final Status status;
-
-    // ─── Fields ───────────────────────────────────────────────────────────────
-    private final ValidationResult validationResult; // Non-null only when status == VALIDATION_FAILED
+    // ─── Factory methods ──────────────────────────────────────────────────────
 
     /**
-     * Private constructor.
+     * Creates a result indicating the transaction was accepted into the mempool.
      *
-     * @param status           the outcome status (non-null)
-     * @param validationResult validation result (non-null iff status == VALIDATION_FAILED)
-     */
-    private MempoolSubmissionResult(Status status, ValidationResult validationResult) {
-        this.status = Objects.requireNonNull(status, "status must not be null");
-        this.validationResult = validationResult;
-    }
-
-    // ─── Private constructor ──────────────────────────────────────────────────
-
-    /**
-     * Creates a successful submission result.
-     *
-     * <p>Uses a reusable singleton instance for this common case.</p>
-     *
-     * @return a result indicating the transaction was accepted
+     * @return a successful {@code MempoolSubmissionResult}
      */
     public static MempoolSubmissionResult accepted() {
-        return ACCEPTED_INSTANCE;
-    }
-
-    // ─── Factory methods ───────────────────────────────────────────────────────
-
-    /**
-     * Creates a validation-failed result.
-     *
-     * @param validationResult the validation failure details (non-null)
-     * @return a result indicating validation failure
-     * @throws NullPointerException     if validationResult is null
-     * @throws IllegalArgumentException if validationResult indicates success
-     */
-    public static MempoolSubmissionResult rejected(ValidationResult validationResult) {
-        Objects.requireNonNull(validationResult, "validationResult must not be null");
-        if (!validationResult.isFailure()) {
-            throw new IllegalArgumentException(
-                "validationResult must indicate failure for rejected() factory");
-        }
-        return new MempoolSubmissionResult(Status.VALIDATION_FAILED, validationResult);
+        return new MempoolSubmissionResult(true, List.of());
     }
 
     /**
-     * Creates a duplicate transaction result.
+     * Creates a result indicating the transaction was rejected.
      *
-     * <p>Uses a reusable singleton instance for this common case.</p>
-     *
-     * @return a result indicating the transaction already exists in the pool
+     * @param reasons non-null list of rejection messages (maybe empty)
+     * @return a failed {@code MempoolSubmissionResult}
+     * @throws NullPointerException if reasons is null
      */
-    public static MempoolSubmissionResult duplicate() {
-        return DUPLICATE_INSTANCE;
+    public static MempoolSubmissionResult rejected(List<String> reasons) {
+        Objects.requireNonNull(reasons, "reasons must not be null");
+        return new MempoolSubmissionResult(false, List.copyOf(reasons));
     }
 
+    // ─── State ────────────────────────────────────────────────────────────────
+
+    /** {@code true} when the transaction was accepted into the pool. */
+    private final boolean accepted;
+
     /**
-     * Returns the outcome status of the submission attempt.
-     *
-     * @return the {@link Status}
+     * Human-readable rejection messages produced by the validator chain.
+     * Empty when {@link #accepted} is {@code true}.
      */
-    public Status getStatus() {
-        return status;
+    private final List<String> rejectionReasons;
+
+    // ─── Constructor ──────────────────────────────────────────────────────────
+
+    /**
+     * Private — use factory methods {@link #accepted()} or {@link #rejected(List)}.
+     *
+     * @param accepted        {@code true} if the transaction was accepted
+     * @param rejectionReasons list of rejection reasons; empty on acceptance
+     */
+    private MempoolSubmissionResult(boolean accepted, List<String> rejectionReasons) {
+        this.accepted = accepted;
+        this.rejectionReasons = List.copyOf(rejectionReasons);
     }
 
     // ─── Accessors ────────────────────────────────────────────────────────────
 
     /**
-     * Returns {@code true} if the transaction was accepted.
+     * Returns {@code true} if the transaction was accepted into the mempool.
      *
-     * @return {@code true} iff status is {@link Status#ACCEPTED}
+     * @return {@code true} on acceptance
      */
     public boolean isAccepted() {
-        return status == Status.ACCEPTED;
+        return accepted;
     }
 
     /**
-     * Returns {@code true} if validation failed.
+     * Returns {@code true} if the transaction was rejected.
      *
-     * @return {@code true} iff status is {@link Status#VALIDATION_FAILED}
-     */
-    public boolean isValidationFailed() {
-        return status == Status.VALIDATION_FAILED;
-    }
-
-    /**
-     * Returns {@code true} if the transaction is a duplicate.
+     * <p>Convenience inverse of {@link #isAccepted()}.</p>
      *
-     * @return {@code true} iff status is {@link Status#DUPLICATE}
+     * @return {@code true} on rejection
      */
-    public boolean isDuplicate() {
-        return status == Status.DUPLICATE;
+    public boolean isRejected() {
+        return !accepted;
     }
 
     /**
-     * Returns the validation failure details, if available.
+     * Returns the list of human-readable rejection reasons.
      *
-     * @return the {@link ValidationResult} if status is {@link Status#VALIDATION_FAILED},
-     * otherwise {@code null}
+     * <p>Returns an empty list when the transaction was accepted.</p>
+     *
+     * @return non-null, unmodifiable list of rejection messages
      */
-    public ValidationResult getValidationResult() {
-        return validationResult;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String toString() {
-        return switch (status) {
-            case ACCEPTED -> "MempoolSubmissionResult{ACCEPTED}";
-            case DUPLICATE -> "MempoolSubmissionResult{DUPLICATE}";
-            case VALIDATION_FAILED -> "MempoolSubmissionResult{VALIDATION_FAILED, " + validationResult + '}';
-        };
+    public List<String> getRejectionReasons() {
+        // Return a defensive unmodifiable view to avoid exposing internal state.
+        return List.copyOf(rejectionReasons);
     }
 
     // ─── Object overrides ─────────────────────────────────────────────────────
 
     /**
-     * {@inheritDoc}
+     * Returns a human-readable string representation of this result.
+     *
+     * @return a string like {@code "MempoolSubmissionResult[accepted=true]"} or
+     *         {@code "MempoolSubmissionResult[rejected, reasons=[...]]"}
+     */
+    @Override
+    public String toString() {
+        if (accepted) {
+            return "MempoolSubmissionResult[accepted=true]";
+        }
+        return "MempoolSubmissionResult[rejected, reasons=" + rejectionReasons + "]";
+    }
+
+    /**
+     * Two results are equal if they have the same acceptance status and rejection reasons.
+     *
+     * @param obj the object to compare with
+     * @return {@code true} if equal
      */
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (!(obj instanceof MempoolSubmissionResult other)) {
-            return false;
-        }
-        return status == other.status
-            && Objects.equals(validationResult, other.validationResult);
+        if (this == obj) return true;
+        if (!(obj instanceof MempoolSubmissionResult other)) return false;
+        return accepted == other.accepted
+            && Objects.equals(rejectionReasons, other.rejectionReasons);
     }
 
     /**
-     * {@inheritDoc}
+     * Returns a hash code consistent with {@link #equals}.
+     *
+     * @return hash code
      */
     @Override
     public int hashCode() {
-        return Objects.hash(status, validationResult);
-    }
-
-    /**
-     * Outcome of a mempool submission attempt.
-     *
-     * @since 1.0.0
-     */
-    public enum Status {
-        /**
-         * Transaction was accepted and added to the pool.
-         */
-        ACCEPTED,
-        /**
-         * Transaction failed validation and was rejected.
-         */
-        VALIDATION_FAILED,
-        /**
-         * Transaction with the same ID already exists in the pool.
-         */
-        DUPLICATE
+        return Objects.hash(accepted, rejectionReasons);
     }
 }
-

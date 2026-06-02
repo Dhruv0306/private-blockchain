@@ -1,283 +1,233 @@
 package com.privatechain.core.mempool;
 
 import com.privatechain.core.builder.Blockchain;
+import com.privatechain.core.event.BlockchainEvent;
+import com.privatechain.core.event.BlockchainEventBus;
+import com.privatechain.core.event.BlockchainEventListener;
 import com.privatechain.core.model.Transaction;
 import com.privatechain.core.spi.TransactionPrioritizer;
 import com.privatechain.core.spi.TransactionValidator;
 import com.privatechain.core.spi.ValidationResult;
 
 import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.PriorityQueue;
+import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 /**
- * Thread-safe, in-memory pool of pending transactions awaiting block inclusion.
+ * In-memory pool of submitted, unconfirmed transactions ordered by a pluggable
+ * {@link TransactionPrioritizer} (FR-MEMPOOL-01 through FR-MEMPOOL-05).
  *
- * <p>{@code TransactionMempool} maintains unconfirmed transactions in a
- * {@link PriorityQueue} ordered by a configurable {@link TransactionPrioritizer}.
- * Transactions are evicted after a configurable TTL via a background
- * {@link ScheduledExecutorService} task (FR-MEMPOOL-01 through FR-MEMPOOL-05).
- * Additionally, all submitted transactions pass through an optional
- * {@link TransactionValidator} gate (FR-MEMPOOL-06).</p>
- *
- * <h2>Validation</h2>
- * <p>When a transaction is submitted via {@link #submitWithValidation(Transaction, Blockchain)},
- * it is first validated against the current chain state. If validation fails, the
- * transaction is rejected and not added to the pool. This prevents invalid transactions
- * from lingering in memory and being propagated to peers.</p>
+ * <h2>Milestone 8 wiring (T-066)</h2>
+ * <p>When constructed with a {@link BlockchainEventBus} the mempool automatically:</p>
+ * <ol>
+ *   <li>Publishes a {@link BlockchainEvent.TransactionSubmittedEvent} on every
+ *       successful {@link #submit(Transaction)} call.</li>
+ *   <li>Registers an internal {@link BlockchainEventListener} that listens for
+ *       {@link BlockchainEvent.BlockAddedEvent} and removes all transactions that
+ *       were confirmed in that block (FR-MEMPOOL-05).</li>
+ * </ol>
  *
  * <h2>Thread safety</h2>
- * <p>All public methods are protected by a {@link ReentrantLock}. The priority queue's
- * comparator must remain consistent during the entire pool lifetime; changing the
- * prioritizer dynamically is not supported.</p>
+ * <p>All public methods are protected by a {@link ReentrantLock}. The event listener
+ * callback {@code onEvent()} also acquires the same lock before modifying the pool,
+ * so concurrent submissions and block-confirmations are always safe.</p>
  *
- * <h2>Lifecycle</h2>
- * <p>Call {@link #start(Duration)} before submitting transactions and {@link #stop()}
- * on application shutdown to cleanly terminate the TTL eviction task.</p>
+ * <h2>Usage</h2>
+ * <pre>{@code
+ * TransactionMempool mempool = new TransactionMempool(
+ *     new FeeBasedPrioritizer(), eventBus);
+ * mempool.start(Duration.ofMinutes(10)); // enable TTL eviction
  *
- * @see TransactionPrioritizer
- * @see TransactionValidator
+ * MempoolSubmissionResult result = mempool.submitWithValidation(tx, blockchain);
+ * if (result.isAccepted()) {
+ *     // tx is in the pool and TransactionSubmittedEvent has been published
+ * }
+ * }</pre>
+ *
+ * @see FeeBasedPrioritizer
+ * @see TimestampBasedPrioritizer
  * @since 1.0.0
  */
 public final class TransactionMempool {
 
     private static final Logger LOGGER = Logger.getLogger(TransactionMempool.class.getName());
 
-    // ─── Configuration ────────────────────────────────────────────────────────
+    /** Default maximum pool capacity (unbounded). */
+    private static final int DEFAULT_MAX_SIZE = Integer.MAX_VALUE;
 
+    // ─── Dependencies ─────────────────────────────────────────────────────────
+
+    /** Ordering strategy applied by {@link PriorityQueue} and {@link #getTopN(int)}. */
     private final TransactionPrioritizer prioritizer;
-    private final TransactionValidator validator; // Optional validator (FR-23)
-    private final int maxPoolSize;
 
-    // ─── State ────────────────────────────────────────────────────────────────
+    /** Optional validator applied in {@link #submitWithValidation}. */
+    private final TransactionValidator validator;
 
+    /**
+     * Optional event bus for publishing {@link BlockchainEvent.TransactionSubmittedEvent}
+     * and receiving {@link BlockchainEvent.BlockAddedEvent} for confirmed-tx cleanup.
+     * {@code null} in standalone mode (no event wiring).
+     */
+    private final BlockchainEventBus eventBus;
+
+    // ─── Pool state ───────────────────────────────────────────────────────────
+
+    /**
+     * Priority queue ordering transactions by the configured prioritizer.
+     * Access always under {@link #lock}.
+     */
     private final PriorityQueue<Transaction> pool;
-    private final Map<UUID, Long> submittedAtTime; // Track submission time for TTL
+
+    /**
+     * Tracks when each transaction was submitted (epoch millis) for TTL eviction.
+     * Uses insertion-ordered {@link LinkedHashMap} for predictable eviction iteration.
+     */
+    private final Map<UUID, Long> submittedAtTime = new LinkedHashMap<>();
+
+    /** Maximum number of transactions the pool can hold at once. */
+    private final int maxSize;
+
+    /** Guards all pool mutations and reads. */
     private final ReentrantLock lock = new ReentrantLock();
 
-    // ─── Eviction task ────────────────────────────────────────────────────────
-
-    private ScheduledExecutorService evictionExecutor;
-    private ScheduledFuture<?> evictionTask;
+    /** Background eviction scheduler; {@code null} until {@link #start} is called. */
+    private ScheduledExecutorService evictionScheduler;
 
     // ─── Constructors ─────────────────────────────────────────────────────────
 
     /**
-     * Constructs a new mempool with the given prioritizer, optional validator, and size limit.
+     * Creates a mempool with a prioritizer and no event-bus integration.
      *
-     * @param prioritizer the {@link TransactionPrioritizer} for ordering (non-null)
-     * @param validator   optional {@link TransactionValidator} to gate submissions (nullable)
-     * @param maxPoolSize maximum number of transactions before FIFO drops occur
-     *                    (use {@link Integer#MAX_VALUE} for unlimited)
-     * @throws NullPointerException if prioritizer is null
-     */
-    public TransactionMempool(TransactionPrioritizer prioritizer, TransactionValidator validator,
-                              int maxPoolSize) {
-        this.prioritizer = Objects.requireNonNull(prioritizer,
-            "prioritizer must not be null");
-        this.validator = validator; // May be null
-        this.maxPoolSize = maxPoolSize > 0 ? maxPoolSize : Integer.MAX_VALUE;
-        this.pool = new PriorityQueue<>(prioritizer);
-        this.submittedAtTime = new ConcurrentHashMap<>();
-
-        LOGGER.info(() -> "TransactionMempool initialised with prioritizer="
-            + prioritizer.getClass().getSimpleName()
-            + ", validator=" + (validator != null ? validator.getClass().getSimpleName() : "none")
-            + ", maxPoolSize=" + this.maxPoolSize);
-    }
-
-    /**
-     * Constructs a mempool with the given prioritizer and validator, unlimited size.
-     *
-     * @param prioritizer the {@link TransactionPrioritizer} for ordering (non-null)
-     * @param validator   optional {@link TransactionValidator} (nullable)
-     * @throws NullPointerException if prioritizer is null
-     */
-    public TransactionMempool(TransactionPrioritizer prioritizer, TransactionValidator validator) {
-        this(prioritizer, validator, Integer.MAX_VALUE);
-    }
-
-    /**
-     * Constructs a mempool with the given prioritizer and size limit (no validator).
-     *
-     * @param prioritizer the {@link TransactionPrioritizer} for ordering (non-null)
-     * @param maxPoolSize maximum number of transactions
-     * @throws NullPointerException if prioritizer is null
-     */
-    public TransactionMempool(TransactionPrioritizer prioritizer, int maxPoolSize) {
-        this(prioritizer, null, maxPoolSize);
-    }
-
-    /**
-     * Constructs a mempool with the given prioritizer (no validator, unlimited size).
-     *
-     * @param prioritizer the {@link TransactionPrioritizer} for ordering (non-null)
+     * @param prioritizer ordering strategy for pending transactions (non-null)
      * @throws NullPointerException if prioritizer is null
      */
     public TransactionMempool(TransactionPrioritizer prioritizer) {
-        this(prioritizer, null, Integer.MAX_VALUE);
+        this(prioritizer, null, DEFAULT_MAX_SIZE);
     }
 
-    // ─── Lifecycle ────────────────────────────────────────────────────────────
-
     /**
-     * Starts the background TTL eviction task.
+     * Creates a mempool with a prioritizer, event-bus integration, and
+     * the default unbounded capacity.
      *
-     * <p>This method must be called before any transactions are submitted. The
-     * eviction task runs every {@code ttl / 2} seconds to remove stale transactions.</p>
+     * <p>When {@code eventBus} is non-null the mempool:</p>
+     * <ul>
+     *   <li>Publishes {@link BlockchainEvent.TransactionSubmittedEvent} on {@link #submit}.</li>
+     *   <li>Registers a listener that removes confirmed transactions on
+     *       {@link BlockchainEvent.BlockAddedEvent}.</li>
+     * </ul>
      *
-     * @param ttl the time-to-live duration for transactions in the pool
-     *            (non-null, must be positive)
-     * @throws NullPointerException     if ttl is null
-     * @throws IllegalArgumentException if ttl duration is non-positive
-     * @throws IllegalStateException    if already started
+     * @param prioritizer ordering strategy for pending transactions (non-null)
+     * @param eventBus    event bus to wire into; may be {@code null} for standalone mode
+     * @throws NullPointerException if prioritizer is null
      */
-    public void start(Duration ttl) {
-        Objects.requireNonNull(ttl, "ttl must not be null");
-        if (ttl.isNegative() || ttl.isZero()) {
-            throw new IllegalArgumentException("ttl must be positive, got: " + ttl);
-        }
-
-        lock.lock();
-        try {
-            if (evictionExecutor != null && !evictionExecutor.isShutdown()) {
-                throw new IllegalStateException("Mempool already started");
-            }
-
-            evictionExecutor = Executors.newScheduledThreadPool(1, r -> {
-                Thread t = new Thread(r, "MemPool-Eviction");
-                t.setDaemon(true);
-                return t;
-            });
-
-            long evictionPeriodMillis = Math.max(1000, ttl.toMillis() / 2);
-            evictionTask = evictionExecutor.scheduleAtFixedRate(
-                () -> evictExpired(ttl),
-                evictionPeriodMillis,
-                evictionPeriodMillis,
-                TimeUnit.MILLISECONDS);
-
-            LOGGER.info(() -> "TransactionMempool eviction started with ttl=" + ttl);
-        } finally {
-            lock.unlock();
-        }
+    public TransactionMempool(TransactionPrioritizer prioritizer, BlockchainEventBus eventBus) {
+        this(prioritizer, null, DEFAULT_MAX_SIZE, eventBus);
     }
 
     /**
-     * Stops the background eviction task and clears all transactions.
+     * Creates a mempool with a prioritizer, optional validator, and unbounded capacity.
      *
-     * <p>This method gracefully shuts down the executor, waiting up to 5 seconds
-     * for in-flight eviction checks to complete.</p>
-     *
-     * @throws IllegalStateException if the mempool was never started
+     * @param prioritizer ordering strategy (non-null)
+     * @param validator   pre-submit validator; may be {@code null}
+     * @throws NullPointerException if prioritizer is null
      */
-    public void stop() {
-        lock.lock();
-        try {
-            if (evictionExecutor == null || evictionExecutor.isShutdown()) {
-                throw new IllegalStateException(
-                    "Mempool was never started or already stopped");
-            }
-
-            evictionTask.cancel(false);
-            evictionExecutor.shutdown();
-
-            try {
-                if (!evictionExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    evictionExecutor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                evictionExecutor.shutdownNow();
-            }
-
-            pool.clear();
-            submittedAtTime.clear();
-
-            LOGGER.info("TransactionMempool stopped");
-        } finally {
-            lock.unlock();
-        }
+    public TransactionMempool(TransactionPrioritizer prioritizer, TransactionValidator validator) {
+        this(prioritizer, validator, DEFAULT_MAX_SIZE);
     }
 
-    // ─── Submission with validation ────────────────────────────────────────────
+    /**
+     * Creates a mempool with a prioritizer, no validator, and bounded capacity.
+     *
+     * @param prioritizer ordering strategy (non-null)
+     * @param maxSize     maximum pool capacity (&ge; 1)
+     * @throws NullPointerException     if prioritizer is null
+     * @throws IllegalArgumentException if maxSize &lt; 1
+     */
+    public TransactionMempool(TransactionPrioritizer prioritizer, int maxSize) {
+        this(prioritizer, null, maxSize);
+    }
 
     /**
-     * Submits a transaction to the mempool after validating it against the blockchain.
+     * Creates a mempool with a prioritizer, optional validator, bounded capacity,
+     * and no event-bus integration.
      *
-     * <p>If a validator is configured, the transaction is validated before entry.
-     * Failing transactions are rejected and not added to the pool. If the pool is at
-     * capacity, the lowest-priority transaction is evicted. Duplicate transactions
-     * (by ID) are not re-added.</p>
+     * @param prioritizer ordering strategy (non-null)
+     * @param validator   pre-submit validator; may be {@code null}
+     * @param maxSize     maximum pool capacity (&ge; 1)
+     * @throws NullPointerException     if prioritizer is null
+     * @throws IllegalArgumentException if maxSize &lt; 1
+     */
+    public TransactionMempool(
+        TransactionPrioritizer prioritizer, TransactionValidator validator, int maxSize) {
+        this(prioritizer, validator, maxSize, null);
+    }
+
+    /**
+     * Full constructor wiring all dependencies.
+     *
+     * @param prioritizer ordering strategy (non-null)
+     * @param validator   pre-submit validator; may be {@code null}
+     * @param maxSize     maximum pool capacity (&ge; 1)
+     * @param eventBus    event bus; may be {@code null}
+     * @throws NullPointerException     if prioritizer is null
+     * @throws IllegalArgumentException if maxSize &lt; 1
+     */
+    public TransactionMempool(
+        TransactionPrioritizer prioritizer,
+        TransactionValidator validator,
+        int maxSize,
+        BlockchainEventBus eventBus) {
+
+        this.prioritizer = Objects.requireNonNull(prioritizer, "prioritizer must not be null");
+        this.validator = validator;  // nullable — optional gate
+        if (maxSize < 1) {
+            throw new IllegalArgumentException("maxSize must be >= 1, got: " + maxSize);
+        }
+        this.maxSize = maxSize;
+        this.eventBus = eventBus;
+
+        // PriorityQueue ordered by the injected prioritizer (highest priority = head)
+        this.pool = new PriorityQueue<>(prioritizer);
+
+        // Wire into event bus if provided (FR-MEMPOOL-05, T-066)
+        if (eventBus != null) {
+            eventBus.register(new BlockAddedEventListener());
+            LOGGER.fine("TransactionMempool registered as BlockAddedEvent listener on event bus");
+        }
+
+        LOGGER.fine(() -> "TransactionMempool initialised [maxSize=" + maxSize
+            + ", prioritizer=" + prioritizer.getClass().getSimpleName()
+            + ", eventBus=" + (eventBus != null ? "wired" : "none") + "]");
+    }
+
+    // ─── Submission ───────────────────────────────────────────────────────────
+
+    /**
+     * Submits a transaction to the pool without pre-validation.
+     *
+     * <p>The transaction is rejected if:</p>
+     * <ul>
+     *   <li>The pool already contains a transaction with the same ID (duplicate)</li>
+     *   <li>The pool is at capacity and the new transaction has lower priority than
+     *       all existing transactions (lowest-priority eviction applies)</li>
+     * </ul>
+     *
+     * <p>On acceptance, if an event bus is wired, a
+     * {@link BlockchainEvent.TransactionSubmittedEvent} is published asynchronously.</p>
      *
      * @param transaction the transaction to submit (non-null)
-     * @param blockchain  the chain state for validation context (non-null if validator is present)
-     * @return a {@link MempoolSubmissionResult} indicating success or validation failure
-     * @throws NullPointerException if transaction is null, or if blockchain is null
-     *                              and a validator is configured
-     */
-    public MempoolSubmissionResult submitWithValidation(Transaction transaction, Blockchain blockchain) {
-        Objects.requireNonNull(transaction, "transaction must not be null");
-        if (validator != null) {
-            Objects.requireNonNull(blockchain, "blockchain must not be null when validator is configured");
-        }
-
-        // Perform validation (if validator is configured)
-        if (validator != null) {
-            ValidationResult validationResult = validator.validate(transaction, blockchain);
-            if (validationResult.isFailure()) {
-                LOGGER.fine(() -> "Transaction rejected by validator: " + transaction.getId()
-                    + ", reason: " + validationResult.getStatus());
-                return MempoolSubmissionResult.rejected(validationResult);
-            }
-        }
-
-        // Add to pool
-        lock.lock();
-        try {
-            // Reject if already present (by ID)
-            if (submittedAtTime.containsKey(transaction.getId())) {
-                LOGGER.fine(() -> "Transaction already in pool: " + transaction.getId());
-                return MempoolSubmissionResult.duplicate();
-            }
-
-            // If at capacity, evict the lowest-priority transaction
-            if (pool.size() >= maxPoolSize) {
-                Transaction evicted = pool.poll();
-                if (evicted != null) {
-                    submittedAtTime.remove(evicted.getId());
-                    LOGGER.fine(() -> "Evicted low-priority tx: " + evicted.getId());
-                }
-            }
-
-            // Add the new transaction
-            pool.offer(transaction);
-            submittedAtTime.put(transaction.getId(), System.currentTimeMillis());
-
-            LOGGER.fine(() -> "Transaction submitted: " + transaction.getId()
-                + ", pool size=" + pool.size());
-            return MempoolSubmissionResult.accepted();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    /**
-     * Submits a transaction to the mempool without validation.
-     *
-     * <p>This method bypasses any configured validator and is useful for testing
-     * or when the caller has already performed validation. For normal use, prefer
-     * {@link #submitWithValidation(Transaction, Blockchain)}.</p>
-     *
-     * <p>If the pool reaches {@link #maxPoolSize}, the transaction with the lowest
-     * priority (tail of the priority queue) is evicted to make room. If the same
-     * transaction (by ID) already exists, it is not re-added.</p>
-     *
-     * @param transaction the transaction to add (non-null)
-     * @return {@code true} if the transaction was added; {@code false} if rejected
-     * (duplicate or pool at capacity)
+     * @return {@code true} if the transaction was accepted; {@code false} if rejected
      * @throws NullPointerException if transaction is null
      */
     public boolean submit(Transaction transaction) {
@@ -285,66 +235,98 @@ public final class TransactionMempool {
 
         lock.lock();
         try {
-            // Reject if already present (by ID)
+            // Reject duplicates (FR-MEMPOOL-01)
             if (submittedAtTime.containsKey(transaction.getId())) {
-                LOGGER.fine(() -> "Transaction already in pool: " + transaction.getId());
+                LOGGER.fine(() ->
+                    "Duplicate transaction rejected: " + transaction.getId());
                 return false;
             }
 
-            // If at capacity, evict the lowest-priority transaction
-            if (pool.size() >= maxPoolSize) {
-                Transaction evicted = pool.poll();
-                if (evicted != null) {
-                    submittedAtTime.remove(evicted.getId());
-                    LOGGER.fine(() -> "Evicted low-priority tx: " + evicted.getId());
+            // If at capacity, evict the lowest-priority entry to make room
+            if (pool.size() >= maxSize) {
+                evictLowestPriority(transaction);
+                // If still at capacity (new tx is the lowest), reject it
+                if (pool.size() >= maxSize) {
+                    LOGGER.fine(() ->
+                        "Pool full — transaction rejected (lower priority than all "
+                            + "existing): " + transaction.getId());
+                    return false;
                 }
             }
 
-            // Add the new transaction
             pool.offer(transaction);
             submittedAtTime.put(transaction.getId(), System.currentTimeMillis());
+            LOGGER.fine(() -> "Transaction accepted into pool: " + transaction.getId()
+                + " [poolSize=" + pool.size() + "]");
 
-            LOGGER.fine(() -> "Transaction submitted: " + transaction.getId()
-                + ", pool size=" + pool.size());
-            return true;
         } finally {
             lock.unlock();
         }
+
+        // Publish event outside the lock to avoid holding it during async dispatch
+        publishSubmittedEvent(transaction);
+        return true;
     }
 
-    // ─── Queries ───────────────────────────────────────────────────────────────
+    /**
+     * Validates and submits a transaction using the configured {@link TransactionValidator}.
+     *
+     * <p>If no validator was provided at construction time, this behaves identically
+     * to {@link #submit(Transaction)}.</p>
+     *
+     * @param transaction the transaction to validate and submit (non-null)
+     * @param chain       the current blockchain state used during validation (non-null)
+     * @return a {@link MempoolSubmissionResult} describing the outcome
+     * @throws NullPointerException if transaction or chain is null
+     */
+    public MempoolSubmissionResult submitWithValidation(Transaction transaction, Blockchain chain) {
+        Objects.requireNonNull(transaction, "transaction must not be null");
+        Objects.requireNonNull(chain, "chain must not be null");
+
+        if (validator != null) {
+            ValidationResult result = validator.validate(transaction, chain);
+            if (result.isFailure()) {
+                LOGGER.fine(() ->
+                    "Transaction failed validation [id=" + transaction.getId()
+                        + ", errors=" + result.getErrors() + "]");
+                return MempoolSubmissionResult.rejected(result.getErrors());
+            }
+        }
+
+        boolean accepted = submit(transaction);
+        if (accepted) {
+            return MempoolSubmissionResult.accepted();
+        }
+        // submit() handles duplicates / capacity — return a generic rejection
+        return MempoolSubmissionResult.rejected(
+            List.of("Rejected: duplicate or pool capacity exceeded"));
+    }
+
+    // ─── Retrieval ────────────────────────────────────────────────────────────
 
     /**
-     * Returns the top N transactions ordered by priority (highest priority first).
+     * Returns the top {@code n} transactions ordered by the configured prioritizer.
      *
-     * <p>The returned list is a snapshot; the mempool is not modified.</p>
+     * <p>The returned list is a snapshot; modifications to the pool do not affect it.</p>
      *
-     * @param n the number of top transactions to return
-     * @return a list of up to {@code n} transactions (may have fewer if pool is smaller)
+     * @param n maximum number of transactions to return (&ge; 0)
+     * @return ordered list with at most {@code n} entries
      * @throws IllegalArgumentException if n is negative
      */
     public List<Transaction> getTopN(int n) {
         if (n < 0) {
             throw new IllegalArgumentException("n must be >= 0, got: " + n);
         }
+        if (n == 0) {
+            return List.of();
+        }
 
         lock.lock();
         try {
-            List<Transaction> result = new ArrayList<>();
-            int count = 0;
-
-            // Create a temporary list to preserve pool state
-            List<Transaction> temp = new ArrayList<>(pool);
-
-            for (Transaction tx : temp) {
-                if (count >= n) {
-                    break;
-                }
-                result.add(tx);
-                count++;
-            }
-
-            return result;
+            // Drain to a sorted list and return the first n entries
+            List<Transaction> all = new ArrayList<>(pool);
+            all.sort(prioritizer);
+            return List.copyOf(all.subList(0, Math.min(n, all.size())));
         } finally {
             lock.unlock();
         }
@@ -353,7 +335,7 @@ public final class TransactionMempool {
     /**
      * Returns the current number of transactions in the pool.
      *
-     * @return non-negative integer
+     * @return pool size (&ge; 0)
      */
     public int size() {
         lock.lock();
@@ -367,8 +349,9 @@ public final class TransactionMempool {
     /**
      * Returns {@code true} if the pool contains a transaction with the given ID.
      *
-     * @param transactionId the transaction ID to check (non-null)
-     * @return {@code true} if the transaction is in the pool
+     * @param transactionId the ID to look up (non-null)
+     * @return {@code true} if present
+     * @throws NullPointerException if transactionId is null
      */
     public boolean contains(UUID transactionId) {
         Objects.requireNonNull(transactionId, "transactionId must not be null");
@@ -381,16 +364,16 @@ public final class TransactionMempool {
     }
 
     /**
-     * Removes a transaction from the pool (e.g., after it is confirmed in a block).
+     * Removes a specific transaction from the pool.
      *
      * @param transactionId the ID of the transaction to remove (non-null)
-     * @return {@code true} if the transaction was present and removed
+     * @return {@code true} if the transaction was found and removed
+     * @throws NullPointerException if transactionId is null
      */
     public boolean remove(UUID transactionId) {
         Objects.requireNonNull(transactionId, "transactionId must not be null");
         lock.lock();
         try {
-            // Find and remove the transaction by ID
             boolean removed = pool.removeIf(tx -> tx.getId().equals(transactionId));
             if (removed) {
                 submittedAtTime.remove(transactionId);
@@ -419,12 +402,13 @@ public final class TransactionMempool {
     // ─── TTL eviction ─────────────────────────────────────────────────────────
 
     /**
-     * Evicts transactions older than the given TTL.
+     * Evicts transactions older than the given TTL (FR-MEMPOOL-04).
      *
-     * <p>This method is called automatically by the background eviction task.
-     * Callers may also invoke it manually to trigger an immediate cleanup pass.</p>
+     * <p>Called automatically by the background scheduler after {@link #start} is
+     * invoked. May also be called manually for an immediate eviction pass.</p>
      *
-     * @param ttl the time-to-live duration (non-null)
+     * @param ttl the time-to-live duration (non-null, positive)
+     * @throws NullPointerException if ttl is null
      */
     public void evictExpired(Duration ttl) {
         Objects.requireNonNull(ttl, "ttl must not be null");
@@ -433,18 +417,13 @@ public final class TransactionMempool {
         try {
             long now = System.currentTimeMillis();
             long ttlMillis = ttl.toMillis();
-
-            // Use entrySet iterator for efficient key-value access
-            Iterator<Map.Entry<UUID, Long>> iter = submittedAtTime.entrySet().iterator();
             int evicted = 0;
 
+            Iterator<Map.Entry<UUID, Long>> iter = submittedAtTime.entrySet().iterator();
             while (iter.hasNext()) {
                 Map.Entry<UUID, Long> entry = iter.next();
-                UUID txId = entry.getKey();
-                long submittedAt = entry.getValue();
-
-                if (now - submittedAt > ttlMillis) {
-                    pool.removeIf(tx -> tx.getId().equals(txId));
+                if (now - entry.getValue() > ttlMillis) {
+                    pool.removeIf(tx -> tx.getId().equals(entry.getKey()));
                     iter.remove();
                     evicted++;
                 }
@@ -452,11 +431,168 @@ public final class TransactionMempool {
 
             if (evicted > 0) {
                 int finalEvicted = evicted;
-                LOGGER.fine(() -> "Evicted " + finalEvicted + " expired transactions");
+                LOGGER.fine(() -> "Evicted " + finalEvicted + " expired transactions from pool");
             }
         } finally {
             lock.unlock();
         }
     }
-}
 
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+    /**
+     * Starts the background TTL eviction scheduler.
+     *
+     * <p>After this call, {@link #evictExpired(Duration)} is called at a fixed
+     * interval equal to {@code ttl / 2} (minimum 10 seconds). The scheduler runs
+     * as a daemon thread and stops when {@link #stop()} is called.</p>
+     *
+     * @param ttl the time-to-live for unconfirmed transactions (non-null, positive)
+     * @throws NullPointerException if ttl is null
+     * @throws IllegalStateException if the scheduler is already running
+     */
+    public void start(Duration ttl) {
+        Objects.requireNonNull(ttl, "ttl must not be null");
+        if (evictionScheduler != null && !evictionScheduler.isShutdown()) {
+            throw new IllegalStateException("Eviction scheduler is already running");
+        }
+
+        long periodMs = Math.max(ttl.toMillis() / 2L, 10_000L);
+
+        evictionScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "blockchain-mempool-eviction");
+            t.setDaemon(true);
+            return t;
+        });
+
+        evictionScheduler
+            .scheduleAtFixedRate(
+                () -> evictExpired(ttl),
+                periodMs,
+                periodMs,
+                TimeUnit.MILLISECONDS);
+
+        LOGGER.info(() ->
+            "TransactionMempool eviction scheduler started [ttl=" + ttl
+                + ", interval=" + Duration.ofMillis(periodMs) + "]");
+    }
+
+    /**
+     * Stops the background eviction scheduler and clears the pool.
+     *
+     * <p>After this call, no further automatic eviction occurs. The pool is
+     * cleared so that stale references are not retained after node shutdown.</p>
+     */
+    public void stop() {
+        if (evictionScheduler != null) {
+            evictionScheduler.shutdown();
+            evictionScheduler = null;
+        }
+        clear();
+        LOGGER.info("TransactionMempool stopped and cleared");
+    }
+
+    // ─── Internal helpers ─────────────────────────────────────────────────────
+
+    /**
+     * Evicts the lowest-priority transaction from the pool to make room for
+     * {@code candidate}. If the candidate itself has lower priority than the
+     * current lowest-priority entry, no eviction is performed (the caller
+     * will then reject the candidate).
+     *
+     * <p>Must be called while {@link #lock} is held.</p>
+     *
+     * @param candidate the incoming transaction competing for pool space
+     */
+    private void evictLowestPriority(Transaction candidate) {
+        // Find the lowest-priority transaction by reversing the comparator
+        Transaction lowest = pool.stream()
+            .max(prioritizer)
+            .orElse(null);
+
+        if (lowest == null) {
+            return;
+        }
+
+        // Only evict if candidate has strictly higher priority
+        if (prioritizer.compare(candidate, lowest) < 0) {
+            pool.remove(lowest);
+            submittedAtTime.remove(lowest.getId());
+            LOGGER.fine(() ->
+                "Evicted lowest-priority transaction from pool [id=" + lowest.getId()
+                    + "] to make room for [id=" + candidate.getId() + "]");
+        }
+    }
+
+    /**
+     * Publishes a {@link BlockchainEvent.TransactionSubmittedEvent} asynchronously
+     * to the wired event bus (if any). Called outside the pool lock.
+     *
+     * @param transaction the transaction that was accepted
+     */
+    private void publishSubmittedEvent(Transaction transaction) {
+        if (eventBus != null && !eventBus.isShutdown()) {
+            eventBus.publish(new BlockchainEvent.TransactionSubmittedEvent(transaction));
+        }
+    }
+
+    /**
+     * Removes all transactions confirmed in the given block from the pool.
+     *
+     * <p>Called by {@link BlockAddedEventListener} when a
+     * {@link BlockchainEvent.BlockAddedEvent} is received (FR-MEMPOOL-05).</p>
+     *
+     * @param block the block whose transactions should be removed from the pool
+     */
+    private void removeConfirmedTransactions(com.privatechain.core.model.Block block) {
+        if (block.getTransactions().isEmpty()) {
+            return;
+        }
+
+        lock.lock();
+        try {
+            int removedCount = 0;
+            for (Transaction tx : block.getTransactions()) {
+                boolean removed = pool.removeIf(p -> p.getId().equals(tx.getId()));
+                if (removed) {
+                    submittedAtTime.remove(tx.getId());
+                    removedCount++;
+                }
+            }
+            if (removedCount > 0) {
+                int finalCount = removedCount;
+                LOGGER.fine(() ->
+                    "Removed " + finalCount + " confirmed transaction(s) from mempool "
+                        + "after block #" + block.getIndex() + " was added");
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // ─── Inner: BlockAddedEvent listener (T-066, FR-MEMPOOL-05) ──────────────
+
+    /**
+     * Internal listener that removes confirmed transactions from the mempool
+     * whenever a new block is committed to the chain.
+     *
+     * <p>Registered on the {@link BlockchainEventBus} at construction time when
+     * an event bus is provided. Only reacts to {@link BlockchainEvent.BlockAddedEvent};
+     * all other event types are ignored efficiently.</p>
+     */
+    private final class BlockAddedEventListener implements BlockchainEventListener {
+
+        /**
+         * Handles an incoming event from the event bus.
+         *
+         * @param event the event to process (non-null)
+         */
+        @Override
+        public void onEvent(BlockchainEvent event) {
+            if (event instanceof BlockchainEvent.BlockAddedEvent blockAdded) {
+                removeConfirmedTransactions(blockAdded.getBlock());
+            }
+            // Silently ignore all other event types
+        }
+    }
+}

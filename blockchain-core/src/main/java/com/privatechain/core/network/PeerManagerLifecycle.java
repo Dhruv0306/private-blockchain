@@ -1,24 +1,32 @@
 package com.privatechain.core.network;
 
 /**
- * Lifecycle and peer-count contract for the optional peer manager.
+ * Lifecycle interface for the P2P peer manager.
  *
  * <p>Defined in {@code blockchain-core} so that {@link com.privatechain.core.builder.BlockchainNode}
- * can reference the peer manager without depending on {@code blockchain-network}.
- * The concrete implementation {@code com.privatechain.network.peer.PeerManager}
- * implements this interface.</p>
+ * can reference the peer manager without introducing a hard dependency on the
+ * {@code blockchain-network} module (design.md §7.1 — zero mandatory transitive deps
+ * on {@code blockchain-core}).</p>
  *
+ * <p>The concrete implementation {@code PeerManager} lives in {@code blockchain-network}
+ * and is injected via
+ * {@link com.privatechain.core.builder.BlockchainNode#setPeerManager(PeerManagerLifecycle)}
+ * during node assembly.</p>
+ *
+ * @see com.privatechain.core.builder.BlockchainNode
  * @since 1.0.0
  */
 public interface PeerManagerLifecycle {
 
     /**
-     * Starts the peer manager and schedules the periodic heartbeat task.
+     * Starts the peer manager (heartbeat scheduler, seed peer connections, etc.).
+     *
+     * @throws IllegalStateException if already started
      */
     void start();
 
     /**
-     * Stops the peer manager, disconnects all peers, and shuts down the scheduler.
+     * Stops the peer manager and disconnects all active peers cleanly.
      */
     void stop();
 
