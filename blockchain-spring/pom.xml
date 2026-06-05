@@ -16,15 +16,16 @@
     <packaging>jar</packaging>
     <name>Blockchain Spring Boot Integration</name>
     <description>
-        Optional Spring Boot 3 autoconfiguration. Reads privatechain.* properties
+        Optional Spring Boot autoconfiguration. Reads blockchain.* properties
         from application.yml, creates a BlockchainNode bean with sensible defaults
-        (@ConditionalOnMissingBean), and registers a BlockchainHealthIndicator for
-        Spring Actuator. Add this module to get zero-config Spring integration.
+        (@ConditionalOnMissingBean). BlockchainHealthIndicator exposes node status
+        without a compile-time dependency on spring-boot-actuator; see its Javadoc
+        for the one-bean bridge pattern to Actuator's health endpoint.
     </description>
 
     <dependencies>
 
-        <!-- All library modules -->
+        <!-- ── Internal library modules ──────────────────────────────────── -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-core</artifactId>
@@ -54,19 +55,25 @@
             <artifactId>blockchain-access</artifactId>
         </dependency>
 
-        <!-- Spring Boot — provided scope: consumers bring their own Boot version -->
+        <!-- ── Spring Boot — provided: consumers supply their own version ── -->
+
+        <!--
+            spring-boot-autoconfigure: supplies @AutoConfiguration,
+            @ConditionalOnProperty, @ConditionalOnMissingBean,
+            @EnableConfigurationProperties, ObjectProvider, etc.
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-actuator-autoconfigure</artifactId>
-            <scope>provided</scope>
-        </dependency>
 
-        <!-- Config processor: generates spring-configuration-metadata.json for IDE hints -->
+        <!--
+            spring-boot-configuration-processor: generates
+            META-INF/spring-configuration-metadata.json at compile time so IDEs
+            autocomplete blockchain.* properties (T-071). Optional + provided so
+            it never appears in consumers' dependency trees.
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
@@ -74,13 +81,87 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Test: full Spring Boot test slice -->
+        <!-- ── Static analysis — provided: compile-time only ──────────────── -->
+
+        <!--
+            spotbugs-annotations: suppresses "cannot find annotation method
+            value() in @SuppressFBWarnings" warnings that javac emits when
+            loading class files from blockchain-storage / blockchain-network.
+        -->
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ── Test ────────────────────────────────────────────────────────── -->
+
+        <!--
+            spring-boot-starter-test: JUnit 5, AssertJ, Mockito, and
+            ApplicationContextRunner for autoconfiguration slice tests (T-073).
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
 
+        <!--
+            logback-core version alignment fix.
+
+            ROOT CAUSE: The root POM pins logback-classic to ${logback.version}
+            (currently 1.5.25) via its <dependencyManagement>, but leaves
+            logback-core unmanaged — it falls through to the Spring Boot BOM
+            which resolves it to a different (older) patch version.
+
+            logback-classic 1.5.25 calls
+              VersionUtil.checkForVersionEquality(Context, Class, Class, String, String)
+            which was added to logback-core in 1.5.x. When logback-core on the
+            classpath is an older 1.5.x build that lacks this method, the JVM
+            throws NoSuchMethodError → ExceptionInInitializerError in MarkerFactory
+            → every Spring context fails to start before a single test assertion runs.
+
+            FIX: Force logback-core to the same ${logback.version} property used
+            for logback-classic so both halves of Logback are always the same build.
+            The property is inherited from the root POM so no hard-coded version
+            appears here.
+        -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!--
+                        The root POM sets -Xlint:all and -Werror.
+                        combine.children="append" preserves those flags and
+                        appends -Xlint:-processing on top.
+
+                        WHY -Xlint:-processing:
+                        The spring-boot-configuration-processor only claims
+                        @ConfigurationProperties. All other Spring annotations
+                        (@AutoConfiguration, @Bean, @ConditionalOnProperty, etc.)
+                        are runtime-only and unclaimed at compile time. javac
+                        emits a "No processor claimed any of these annotations"
+                        warning for each one — this warning belongs to javac's
+                        "processing" lint category. Without the suppression,
+                        -Werror turns that single warning into a build failure.
+                    -->
+                    <compilerArgs combine.children="append">
+                        <arg>-Xlint:-processing</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>
