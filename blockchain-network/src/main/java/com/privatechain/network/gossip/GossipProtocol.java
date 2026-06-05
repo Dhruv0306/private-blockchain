@@ -138,6 +138,21 @@ public final class GossipProtocol implements BlockchainEventListener {
     // ─── BlockchainEventListener ──────────────────────────────────────────────
 
     /**
+     * Computes {@code ⌈log₂(n)⌉} — the gossip fan-out for {@code n} eligible peers.
+     *
+     * <p>Always returns at least 1, even if {@code n == 1}.</p>
+     *
+     * @param n number of eligible peers (&ge; 1)
+     * @return fan-out count (&ge; 1)
+     */
+    public static int computeFanOut(int n) {
+        if (n <= 1) return 1;
+        return (int) Math.ceil(Math.log(n) / Math.log(2));
+    }
+
+    // ─── Gossip ───────────────────────────────────────────────────────────────
+
+    /**
      * Reacts to blockchain events.
      *
      * <p>Only {@link BlockchainEvent.TransactionSubmittedEvent} instances trigger gossip;
@@ -152,8 +167,6 @@ public final class GossipProtocol implements BlockchainEventListener {
             gossip(txEvent.getTransaction(), localNodeId);
         }
     }
-
-    // ─── Gossip ───────────────────────────────────────────────────────────────
 
     /**
      * Gossips a transaction to {@code ⌈log₂(n)⌉} randomly selected connected peers.
@@ -215,6 +228,8 @@ public final class GossipProtocol implements BlockchainEventListener {
         }
     }
 
+    // ─── Private helpers ──────────────────────────────────────────────────────
+
     /**
      * Shuts down the gossip thread pool.
      *
@@ -224,21 +239,6 @@ public final class GossipProtocol implements BlockchainEventListener {
     public void shutdown() {
         gossipPool.shutdownNow();
         LOGGER.info("GossipProtocol shutdown");
-    }
-
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
-    /**
-     * Computes {@code ⌈log₂(n)⌉} — the gossip fan-out for {@code n} eligible peers.
-     *
-     * <p>Always returns at least 1, even if {@code n == 1}.</p>
-     *
-     * @param n number of eligible peers (&ge; 1)
-     * @return fan-out count (&ge; 1)
-     */
-    public static int computeFanOut(int n) {
-        if (n <= 1) return 1;
-        return (int) Math.ceil(Math.log(n) / Math.log(2));
     }
 
     /**

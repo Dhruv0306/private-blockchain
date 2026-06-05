@@ -10,14 +10,7 @@ import com.privatechain.core.spi.TransactionValidator;
 import com.privatechain.core.spi.ValidationResult;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.PriorityQueue;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -63,15 +56,21 @@ public final class TransactionMempool {
 
     private static final Logger LOGGER = Logger.getLogger(TransactionMempool.class.getName());
 
-    /** Default maximum pool capacity (unbounded). */
+    /**
+     * Default maximum pool capacity (unbounded).
+     */
     private static final int DEFAULT_MAX_SIZE = Integer.MAX_VALUE;
 
     // ─── Dependencies ─────────────────────────────────────────────────────────
 
-    /** Ordering strategy applied by {@link PriorityQueue} and {@link #getTopN(int)}. */
+    /**
+     * Ordering strategy applied by {@link PriorityQueue} and {@link #getTopN(int)}.
+     */
     private final TransactionPrioritizer prioritizer;
 
-    /** Optional validator applied in {@link #submitWithValidation}. */
+    /**
+     * Optional validator applied in {@link #submitWithValidation}.
+     */
     private final TransactionValidator validator;
 
     /**
@@ -95,13 +94,19 @@ public final class TransactionMempool {
      */
     private final Map<UUID, Long> submittedAtTime = new LinkedHashMap<>();
 
-    /** Maximum number of transactions the pool can hold at once. */
+    /**
+     * Maximum number of transactions the pool can hold at once.
+     */
     private final int maxSize;
 
-    /** Guards all pool mutations and reads. */
+    /**
+     * Guards all pool mutations and reads.
+     */
     private final ReentrantLock lock = new ReentrantLock();
 
-    /** Background eviction scheduler; {@code null} until {@link #start} is called. */
+    /**
+     * Background eviction scheduler; {@code null} until {@link #start} is called.
+     */
     private ScheduledExecutorService evictionScheduler;
 
     // ─── Constructors ─────────────────────────────────────────────────────────
@@ -448,7 +453,7 @@ public final class TransactionMempool {
      * as a daemon thread and stops when {@link #stop()} is called.</p>
      *
      * @param ttl the time-to-live for unconfirmed transactions (non-null, positive)
-     * @throws NullPointerException if ttl is null
+     * @throws NullPointerException  if ttl is null
      * @throws IllegalStateException if the scheduler is already running
      */
     public void start(Duration ttl) {

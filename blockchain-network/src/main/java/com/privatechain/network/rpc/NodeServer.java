@@ -117,17 +117,6 @@ public final class NodeServer implements NodeServerLifecycle {
      * Event bus for publishing peer connect/disconnect events.
      */
     private final BlockchainEventBus eventBus;
-
-    /**
-     * Optional gossip layer for forwarding transactions (wired after gossip module starts).
-     */
-    private volatile GossipProtocol gossipProtocol; // nullable — set via setter
-
-    /**
-     * Underlying server socket. Set during {@link #start()}.
-     */
-    private volatile ServerSocket serverSocket;
-
     /**
      * Thread pool for handling concurrent inbound connections.
      */
@@ -137,7 +126,14 @@ public final class NodeServer implements NodeServerLifecycle {
             t.setDaemon(true);
             return t;
         });
-
+    /**
+     * Optional gossip layer for forwarding transactions (wired after gossip module starts).
+     */
+    private volatile GossipProtocol gossipProtocol; // nullable — set via setter
+    /**
+     * Underlying server socket. Set during {@link #start()}.
+     */
+    private volatile ServerSocket serverSocket;
     /**
      * Controls the server accept loop.
      */

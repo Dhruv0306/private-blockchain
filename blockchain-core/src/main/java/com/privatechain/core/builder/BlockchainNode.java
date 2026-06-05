@@ -72,31 +72,27 @@ public final class BlockchainNode {
     // ─── Optional Milestone 7 network subsystems ──────────────────────────────
     // Public setters allow blockchain-network (a different Maven module / package)
     // to inject implementations while keeping blockchain-core dependency-free.
-
+    /**
+     * Guards against double-start or operations before {@link #start()}.
+     */
+    private final AtomicBoolean started = new AtomicBoolean(false);
     /**
      * TCP server for inbound peer connections.
      * {@code null} when the node runs in standalone (no-network) mode.
      */
     private NodeServerLifecycle nodeServer;
-
     /**
      * Manages the peer lifecycle (connect / disconnect / heartbeat).
      * {@code null} when the node runs in standalone mode.
      */
     private PeerManagerLifecycle peerManager;
 
+    // ─── Lifecycle state ──────────────────────────────────────────────────────
     /**
      * Performs an initial chain synchronization on startup.
      * {@code null} when the node runs in standalone mode.
      */
     private ChainSyncer syncManager;
-
-    // ─── Lifecycle state ──────────────────────────────────────────────────────
-
-    /**
-     * Guards against double-start or operations before {@link #start()}.
-     */
-    private final AtomicBoolean started = new AtomicBoolean(false);
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 

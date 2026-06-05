@@ -43,44 +43,17 @@ import java.math.BigDecimal;
  */
 public final class FeeBasedPrioritizer implements TransactionPrioritizer, Serializable {
 
-    @Serial
-    private static final long serialVersionUID = 1L;
-
     /**
      * Metadata key used to extract the transaction fee.
      */
     public static final String FEE_METADATA_KEY = "fee";
-
+    @Serial
+    private static final long serialVersionUID = 1L;
     /**
      * Fallback prioritizer for stable tiebreaking when fees are equal.
      */
     private static final TimestampBasedPrioritizer TIMESTAMP_TIEBREAKER =
         new TimestampBasedPrioritizer();
-
-    /**
-     * Compares two transactions by fee in descending order.
-     *
-     * <p>A negative return value means {@code t1} should be selected before {@code t2}
-     * (i.e., {@code t1} has a higher or equal fee).</p>
-     *
-     * @param t1 the first transaction (non-null)
-     * @param t2 the second transaction (non-null)
-     * @return negative if {@code t1} has higher priority, positive if {@code t2} does
-     */
-    @Override
-    public int compare(Transaction t1, Transaction t2) {
-        BigDecimal fee1 = extractFee(t1);
-        BigDecimal fee2 = extractFee(t2);
-
-        // Descending fee order: higher fee → comes first → negative comparator result
-        int cmp = fee2.compareTo(fee1);
-        if (cmp != 0) {
-            return cmp;
-        }
-
-        // Stable tiebreaker: oldest timestamp first (FIFO within same fee tier)
-        return TIMESTAMP_TIEBREAKER.compare(t1, t2);
-    }
 
     /**
      * Extracts the fee from the transaction's metadata map.
@@ -126,6 +99,31 @@ public final class FeeBasedPrioritizer implements TransactionPrioritizer, Serial
 
         // Unrecognised type — zero fee
         return BigDecimal.ZERO;
+    }
+
+    /**
+     * Compares two transactions by fee in descending order.
+     *
+     * <p>A negative return value means {@code t1} should be selected before {@code t2}
+     * (i.e., {@code t1} has a higher or equal fee).</p>
+     *
+     * @param t1 the first transaction (non-null)
+     * @param t2 the second transaction (non-null)
+     * @return negative if {@code t1} has higher priority, positive if {@code t2} does
+     */
+    @Override
+    public int compare(Transaction t1, Transaction t2) {
+        BigDecimal fee1 = extractFee(t1);
+        BigDecimal fee2 = extractFee(t2);
+
+        // Descending fee order: higher fee → comes first → negative comparator result
+        int cmp = fee2.compareTo(fee1);
+        if (cmp != 0) {
+            return cmp;
+        }
+
+        // Stable tiebreaker: oldest timestamp first (FIFO within same fee tier)
+        return TIMESTAMP_TIEBREAKER.compare(t1, t2);
     }
 
     /**

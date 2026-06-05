@@ -44,6 +44,46 @@ class MempoolEventWiringTest {
     private BlockchainEventBus eventBus;
     private TransactionMempool mempool;
 
+    /**
+     * Creates a minimal concrete {@link Transaction} subclass with the given fields.
+     *
+     * @param sender   sender address
+     * @param receiver receiver address
+     * @param amount   transfer amount
+     * @return a new unsigned transaction
+     */
+    private static Transaction createTx(String sender, String receiver, int amount) {
+        return new Transaction(
+            UUID.randomUUID(),
+            sender,
+            receiver,
+            BigDecimal.valueOf(amount),
+            Instant.now(),
+            null) {
+        };
+    }
+
+    /**
+     * Builds a minimal {@link Block} at the given index containing the provided transactions.
+     *
+     * @param index        block index (&ge; 0)
+     * @param transactions transactions to include (non-null)
+     * @return a new block
+     */
+    private static Block buildBlockWithTransactions(int index, List<Transaction> transactions) {
+        BlockHeader header = BlockHeader.builder()
+            .merkleRoot(BlockHeader.EMPTY_MERKLE_ROOT)
+            .build();
+        return Block.builder()
+            .index(index)
+            .previousHash(Block.GENESIS_PREVIOUS_HASH)
+            .transactions(transactions)
+            .header(header)
+            .build();
+    }
+
+    // ─── TransactionSubmittedEvent publication ────────────────────────────────
+
     @BeforeEach
     void setUp() {
         eventBus = new BlockchainEventBus();
@@ -57,8 +97,6 @@ class MempoolEventWiringTest {
             eventBus.shutdown();
         }
     }
-
-    // ─── TransactionSubmittedEvent publication ────────────────────────────────
 
     @Test
     @Timeout(5)
@@ -85,6 +123,8 @@ class MempoolEventWiringTest {
         assertEquals(tx.getId(), captured.get().getTransaction().getId(),
             "Published event should carry the submitted transaction's ID");
     }
+
+    // ─── Confirmed transaction removal (FR-MEMPOOL-05) ───────────────────────
 
     @Test
     @Timeout(5)
@@ -124,8 +164,6 @@ class MempoolEventWiringTest {
         assertEquals(0, eventCount.get(),
             "No events should be published after bus shutdown");
     }
-
-    // ─── Confirmed transaction removal (FR-MEMPOOL-05) ───────────────────────
 
     @Test
     @Timeout(5)
@@ -192,6 +230,8 @@ class MempoolEventWiringTest {
             "tx1 (not in block) must remain in pool");
     }
 
+    // ─── Non-interference with other events ──────────────────────────────────
+
     @Test
     @Timeout(5)
     void emptyBlockDoesNotAffectPool() throws InterruptedException {
@@ -236,7 +276,7 @@ class MempoolEventWiringTest {
         assertEquals(0, mempool.size(), "After block 3: pool should be empty");
     }
 
-    // ─── Non-interference with other events ──────────────────────────────────
+    // ─── Factory helpers ──────────────────────────────────────────────────────
 
     @Test
     @Timeout(5)
@@ -262,45 +302,5 @@ class MempoolEventWiringTest {
         assertTrue(eventBus.awaitQuiescence(2, TimeUnit.SECONDS));
 
         assertEquals(1, mempool.size(), "ForkDetectedEvent must not alter pool");
-    }
-
-    // ─── Factory helpers ──────────────────────────────────────────────────────
-
-    /**
-     * Creates a minimal concrete {@link Transaction} subclass with the given fields.
-     *
-     * @param sender   sender address
-     * @param receiver receiver address
-     * @param amount   transfer amount
-     * @return a new unsigned transaction
-     */
-    private static Transaction createTx(String sender, String receiver, int amount) {
-        return new Transaction(
-            UUID.randomUUID(),
-            sender,
-            receiver,
-            BigDecimal.valueOf(amount),
-            Instant.now(),
-            null) {
-        };
-    }
-
-    /**
-     * Builds a minimal {@link Block} at the given index containing the provided transactions.
-     *
-     * @param index        block index (&ge; 0)
-     * @param transactions transactions to include (non-null)
-     * @return a new block
-     */
-    private static Block buildBlockWithTransactions(int index, List<Transaction> transactions) {
-        BlockHeader header = BlockHeader.builder()
-            .merkleRoot(BlockHeader.EMPTY_MERKLE_ROOT)
-            .build();
-        return Block.builder()
-            .index(index)
-            .previousHash(Block.GENESIS_PREVIOUS_HASH)
-            .transactions(transactions)
-            .header(header)
-            .build();
     }
 }

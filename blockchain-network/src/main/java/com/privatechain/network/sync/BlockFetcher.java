@@ -33,15 +33,13 @@ import java.util.logging.Logger;
  */
 public final class BlockFetcher {
 
-    private static final Logger LOGGER = Logger.getLogger(BlockFetcher.class.getName());
-
     /**
      * Maximum number of blocks requested in a single GET_BLOCKS message.
      */
     public static final int BATCH_SIZE = 100;
+    private static final Logger LOGGER = Logger.getLogger(BlockFetcher.class.getName());
 
     // ─── Fields ───────────────────────────────────────────────────────────────
-
     /**
      * This node's stable identifier (used as senderId in outbound messages).
      */

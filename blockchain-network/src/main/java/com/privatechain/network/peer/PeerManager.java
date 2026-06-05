@@ -46,20 +46,17 @@ import java.util.stream.Collectors;
  */
 public final class PeerManager implements PeerManagerLifecycle {
 
-    private static final Logger LOGGER = Logger.getLogger(PeerManager.class.getName());
-
     /**
      * How often the heartbeat task checks peer liveness (seconds).
      */
     public static final int HEARTBEAT_INTERVAL_SECONDS = 30;
-
     /**
      * Silence duration before a peer is considered unresponsive (seconds).
      */
     public static final int PEER_TIMEOUT_SECONDS = 90;
+    private static final Logger LOGGER = Logger.getLogger(PeerManager.class.getName());
 
     // ─── Dependencies ─────────────────────────────────────────────────────────
-
     /**
      * Persistent index of all known peers (connected and disconnected).
      * {@code PeerStore.put(Peer)} is the correct method to save a peer.

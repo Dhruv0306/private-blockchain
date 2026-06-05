@@ -104,6 +104,21 @@ public final class MessageCodec {
     // ─── Encoding ─────────────────────────────────────────────────────────────
 
     /**
+     * Asserts that a message is of the expected type.
+     *
+     * @param message      the message to check (non-null)
+     * @param expectedType the required type
+     * @throws IllegalArgumentException if the message type does not match
+     */
+    private static void requireType(NetworkMessage message, MessageType expectedType) {
+        Objects.requireNonNull(message, "message must not be null");
+        if (message.getType() != expectedType) {
+            throw new IllegalArgumentException(
+                "Expected message type " + expectedType + " but got " + message.getType());
+        }
+    }
+
+    /**
      * Encodes a {@link NetworkMessage} to a UTF-8 JSON byte array.
      *
      * @param message the message to encode (non-null)
@@ -120,6 +135,8 @@ public final class MessageCodec {
         }
     }
 
+    // ─── Decoding ─────────────────────────────────────────────────────────────
+
     /**
      * Encodes a {@link NetworkMessage} to a UTF-8 JSON string.
      *
@@ -130,8 +147,6 @@ public final class MessageCodec {
     public String encodeToString(NetworkMessage message) {
         return new String(encode(message), StandardCharsets.UTF_8);
     }
-
-    // ─── Decoding ─────────────────────────────────────────────────────────────
 
     /**
      * Decodes a UTF-8 JSON byte array into a {@link NetworkMessage}.
@@ -153,6 +168,8 @@ public final class MessageCodec {
         }
     }
 
+    // ─── Message factory helpers ──────────────────────────────────────────────
+
     /**
      * Decodes a JSON string into a {@link NetworkMessage}.
      *
@@ -167,8 +184,6 @@ public final class MessageCodec {
         }
         return decode(json.getBytes(StandardCharsets.UTF_8));
     }
-
-    // ─── Message factory helpers ──────────────────────────────────────────────
 
     /**
      * Creates a {@code BLOCK} message carrying the given block.
@@ -249,6 +264,8 @@ public final class MessageCodec {
         return new NetworkMessage(MessageType.PING, senderId, "{}");
     }
 
+    // ─── Payload extraction helpers ───────────────────────────────────────────
+
     /**
      * Creates a {@code PONG} heartbeat response message.
      *
@@ -258,8 +275,6 @@ public final class MessageCodec {
     public NetworkMessage pongMessage(String senderId) {
         return new NetworkMessage(MessageType.PONG, senderId, "{}");
     }
-
-    // ─── Payload extraction helpers ───────────────────────────────────────────
 
     /**
      * Extracts and deserializes a {@link Block} from the payload of a {@code BLOCK} message.
@@ -294,6 +309,8 @@ public final class MessageCodec {
         }
     }
 
+    // ─── Private helpers ──────────────────────────────────────────────────────
+
     /**
      * Extracts the chain height from the payload of a {@code STATUS} message.
      *
@@ -307,23 +324,6 @@ public final class MessageCodec {
             return mapper.readTree(message.getPayload()).get("chainHeight").asInt();
         } catch (IOException e) {
             throw new IllegalArgumentException("Failed to extract chain height: " + e.getMessage(), e);
-        }
-    }
-
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
-    /**
-     * Asserts that a message is of the expected type.
-     *
-     * @param message      the message to check (non-null)
-     * @param expectedType the required type
-     * @throws IllegalArgumentException if the message type does not match
-     */
-    private static void requireType(NetworkMessage message, MessageType expectedType) {
-        Objects.requireNonNull(message, "message must not be null");
-        if (message.getType() != expectedType) {
-            throw new IllegalArgumentException(
-                "Expected message type " + expectedType + " but got " + message.getType());
         }
     }
 

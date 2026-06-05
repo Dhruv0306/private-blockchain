@@ -33,48 +33,48 @@ option java_multiple_files = true;
 // Every message sent between nodes is framed as a NetworkMessage.
 message NetworkMessage {
 
-  // Discriminator that determines how to interpret the payload field.
-  MessageType type = 1;
+    // Discriminator that determines how to interpret the payload field.
+    MessageType type = 1;
 
-  // Stable logical identifier of the originating node (hex-encoded public key hash).
-  // Checked against the allowlist before any payload deserialization (NFR-SEC-04).
-  string sender_id = 2;
+    // Stable logical identifier of the originating node (hex-encoded public key hash).
+    // Checked against the allowlist before any payload deserialization (NFR-SEC-04).
+    string sender_id = 2;
 
-  // Type-specific payload serialized as raw bytes.
-  // Interpretation depends on the `type` field:
-  //   BLOCK       → serialized Block message
-  //   TRANSACTION → serialized Transaction message
-  //   STATUS      → serialized StatusPayload message
-  //   GET_BLOCKS  → serialized GetBlocksPayload message
-  //   PING / PONG → empty bytes
-  bytes payload = 3;
+    // Type-specific payload serialized as raw bytes.
+    // Interpretation depends on the `type` field:
+    //   BLOCK       → serialized Block message
+    //   TRANSACTION → serialized Transaction message
+    //   STATUS      → serialized StatusPayload message
+    //   GET_BLOCKS  → serialized GetBlocksPayload message
+    //   PING / PONG → empty bytes
+    bytes payload = 3;
 }
 
 // Discriminator for all P2P message types.
 enum MessageType {
-  // Default / unset — should never appear on the wire; treated as an error.
-  UNKNOWN = 0;
+    // Default / unset — should never appear on the wire; treated as an error.
+    UNKNOWN = 0;
 
-  // A fully formed block to be appended to the chain.
-  BLOCK = 1;
+    // A fully formed block to be appended to the chain.
+    BLOCK = 1;
 
-  // A signed, validated transaction to enter the mempool.
-  TRANSACTION = 2;
+    // A signed, validated transaction to enter the mempool.
+    TRANSACTION = 2;
 
-  // Request for a peer's current chain height (no payload).
-  GET_STATUS = 3;
+    // Request for a peer's current chain height (no payload).
+    GET_STATUS = 3;
 
-  // Response reporting a peer's current chain height.
-  STATUS = 4;
+    // Response reporting a peer's current chain height.
+    STATUS = 4;
 
-  // Request for a range of blocks by height index.
-  GET_BLOCKS = 5;
+    // Request for a range of blocks by height index.
+    GET_BLOCKS = 5;
 
-  // Heartbeat ping (no payload).
-  PING = 6;
+    // Heartbeat ping (no payload).
+    PING = 6;
 
-  // Heartbeat pong response (no payload).
-  PONG = 7;
+    // Heartbeat pong response (no payload).
+    PONG = 7;
 }
 
 // ─── Domain messages ─────────────────────────────────────────────────────────
@@ -82,53 +82,53 @@ enum MessageType {
 // Lightweight block header transmitted during status negotiation.
 // A full block carries a BlockHeader embedded inside a Block message.
 message BlockHeader {
-  int32  version = 1;  // Protocol version
-  int32  bits = 2;  // Compact target difficulty (PoW bits field)
-  int64  nonce = 3;  // Mining nonce (PoW) or signature nonce (PoA)
-  string merkle_root = 4;  // Hex-encoded Merkle root of transactions
-  int64  timestamp = 5;  // Unix epoch millis (UTC)
+    int32  version = 1;  // Protocol version
+    int32  bits = 2;  // Compact target difficulty (PoW bits field)
+    int64  nonce = 3;  // Mining nonce (PoW) or signature nonce (PoA)
+    string merkle_root = 4;  // Hex-encoded Merkle root of transactions
+    int64  timestamp = 5;  // Unix epoch millis (UTC)
 }
 
 // Represents a mined block transmitted over the wire.
 message Block {
-  int32         index = 1;  // Zero-based block height
-  BlockHeader   header = 2;  // Block header
-  string        previous_hash = 3;  // Hex-encoded hash of the previous block
-  string        hash = 4;  // Hex-encoded hash of this block
-  repeated bytes transactions = 5;  // Serialized Transaction messages
+    int32         index = 1;  // Zero-based block height
+    BlockHeader   header = 2;  // Block header
+    string        previous_hash = 3;  // Hex-encoded hash of the previous block
+    string        hash = 4;  // Hex-encoded hash of this block
+    repeated bytes transactions = 5;  // Serialized Transaction messages
 }
 
 // Represents a signed transaction.
 // The `type_tag` field carries the Jackson @JsonTypeInfo discriminator so that
 // the consuming node can deserialize the correct Transaction subclass.
 message Transaction {
-  string type_tag = 1;  // Fully-qualified class name (Jackson Id.CLASS)
-  string id = 2;  // UUID string
-  string sender_address = 3;
-  string receiver_address = 4;
-  string amount = 5;  // BigDecimal as string (precision-safe)
-  int64  timestamp = 6;  // Unix epoch millis (UTC)
-  bytes  signature = 7;  // ECDSA secp256k1 DER-encoded signature
-  bytes  metadata_json = 8;  // JSON-encoded Map<String, Object> for extensibility
+    string type_tag = 1;  // Fully-qualified class name (Jackson Id.CLASS)
+    string id = 2;  // UUID string
+    string sender_address = 3;
+    string receiver_address = 4;
+    string amount = 5;  // BigDecimal as string (precision-safe)
+    int64  timestamp = 6;  // Unix epoch millis (UTC)
+    bytes  signature = 7;  // ECDSA secp256k1 DER-encoded signature
+    bytes  metadata_json = 8;  // JSON-encoded Map<String, Object> for extensibility
 }
 
 // ─── Payload messages ─────────────────────────────────────────────────────────
 
 // Payload for STATUS response messages.
 message StatusPayload {
-  int32  chain_height = 1;  // Current canonical chain height (number of blocks)
-  string node_id = 2;  // Responding node's stable identifier
+    int32  chain_height = 1;  // Current canonical chain height (number of blocks)
+    string node_id = 2;  // Responding node's stable identifier
 }
 
 // Payload for GET_BLOCKS request messages.
 message GetBlocksPayload {
-  int32 from_height = 1;  // Inclusive start block index
-  int32 to_height = 2;  // Inclusive end block index
+    int32 from_height = 1;  // Inclusive start block index
+    int32 to_height = 2;  // Inclusive end block index
 }
 
 // Payload for GET_BLOCKS response messages (array of blocks).
 message BlocksPayload {
-  repeated Block blocks = 1;
+    repeated Block blocks = 1;
 }
 
 // ─── Handshake messages ───────────────────────────────────────────────────────
@@ -136,14 +136,14 @@ message BlocksPayload {
 // Sent by a new node when it first connects, carrying its identity for allowlist
 // verification and the signed invitation token (FR-AC-04, design.md §4.4).
 message JoinRequest {
-  string node_id = 1;  // Stable logical identifier of the joining node
-  string public_key_hex = 2;  // Hex-encoded secp256k1 public key
-  string invitation_token = 3;  // Base64-encoded ECDSA-signed invitation token
+    string node_id = 1;  // Stable logical identifier of the joining node
+    string public_key_hex = 2;  // Hex-encoded secp256k1 public key
+    string invitation_token = 3;  // Base64-encoded ECDSA-signed invitation token
 }
 
 // Response to a JoinRequest from the admin node.
 message JoinResponse {
-  bool   accepted = 1;  // true if the node was added to the allowlist
-  string reject_reason = 2;  // Human-readable reason for rejection; empty if accepted
-  string assigned_role = 3;  // The NodeRole assigned to the new node
+    bool   accepted = 1;  // true if the node was added to the allowlist
+    string reject_reason = 2;  // Human-readable reason for rejection; empty if accepted
+    string assigned_role = 3;  // The NodeRole assigned to the new node
 }

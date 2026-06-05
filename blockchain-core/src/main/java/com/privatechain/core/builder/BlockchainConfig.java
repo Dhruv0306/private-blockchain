@@ -236,13 +236,11 @@ public final class BlockchainConfig {
      */
     public static final class Builder {
 
+        private final List<TransactionValidator> transactionValidators = new ArrayList<>();
+        private final List<BlockchainEventListener> eventListeners = new ArrayList<>();
         // Resolved lazily in build() to avoid circular deps with consensus/storage modules
         private ConsensusEngine consensusEngine;
         private BlockchainStorage storage;
-
-        private final List<TransactionValidator> transactionValidators = new ArrayList<>();
-        private final List<BlockchainEventListener> eventListeners = new ArrayList<>();
-
         // eventBus is always initialized — BlockchainNode may rely on non-null guarantee
         private BlockchainEventBus eventBus = new BlockchainEventBus();
 

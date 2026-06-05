@@ -26,6 +26,29 @@ public final class MempoolSubmissionResult {
     // ─── Factory methods ──────────────────────────────────────────────────────
 
     /**
+     * {@code true} when the transaction was accepted into the pool.
+     */
+    private final boolean accepted;
+    /**
+     * Human-readable rejection messages produced by the validator chain.
+     * Empty when {@link #accepted} is {@code true}.
+     */
+    private final List<String> rejectionReasons;
+
+    // ─── State ────────────────────────────────────────────────────────────────
+
+    /**
+     * Private — use factory methods {@link #accepted()} or {@link #rejected(List)}.
+     *
+     * @param accepted         {@code true} if the transaction was accepted
+     * @param rejectionReasons list of rejection reasons; empty on acceptance
+     */
+    private MempoolSubmissionResult(boolean accepted, List<String> rejectionReasons) {
+        this.accepted = accepted;
+        this.rejectionReasons = List.copyOf(rejectionReasons);
+    }
+
+    /**
      * Creates a result indicating the transaction was accepted into the mempool.
      *
      * @return a successful {@code MempoolSubmissionResult}
@@ -33,6 +56,8 @@ public final class MempoolSubmissionResult {
     public static MempoolSubmissionResult accepted() {
         return new MempoolSubmissionResult(true, List.of());
     }
+
+    // ─── Constructor ──────────────────────────────────────────────────────────
 
     /**
      * Creates a result indicating the transaction was rejected.
@@ -44,30 +69,6 @@ public final class MempoolSubmissionResult {
     public static MempoolSubmissionResult rejected(List<String> reasons) {
         Objects.requireNonNull(reasons, "reasons must not be null");
         return new MempoolSubmissionResult(false, List.copyOf(reasons));
-    }
-
-    // ─── State ────────────────────────────────────────────────────────────────
-
-    /** {@code true} when the transaction was accepted into the pool. */
-    private final boolean accepted;
-
-    /**
-     * Human-readable rejection messages produced by the validator chain.
-     * Empty when {@link #accepted} is {@code true}.
-     */
-    private final List<String> rejectionReasons;
-
-    // ─── Constructor ──────────────────────────────────────────────────────────
-
-    /**
-     * Private — use factory methods {@link #accepted()} or {@link #rejected(List)}.
-     *
-     * @param accepted        {@code true} if the transaction was accepted
-     * @param rejectionReasons list of rejection reasons; empty on acceptance
-     */
-    private MempoolSubmissionResult(boolean accepted, List<String> rejectionReasons) {
-        this.accepted = accepted;
-        this.rejectionReasons = List.copyOf(rejectionReasons);
     }
 
     // ─── Accessors ────────────────────────────────────────────────────────────
@@ -110,7 +111,7 @@ public final class MempoolSubmissionResult {
      * Returns a human-readable string representation of this result.
      *
      * @return a string like {@code "MempoolSubmissionResult[accepted=true]"} or
-     *         {@code "MempoolSubmissionResult[rejected, reasons=[...]]"}
+     * {@code "MempoolSubmissionResult[rejected, reasons=[...]]"}
      */
     @Override
     public String toString() {
