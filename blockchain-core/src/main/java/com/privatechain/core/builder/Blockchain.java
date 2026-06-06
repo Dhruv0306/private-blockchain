@@ -6,7 +6,7 @@ import com.privatechain.core.exception.BlockValidationException;
 import com.privatechain.core.model.Block;
 import com.privatechain.core.spi.BlockchainStorage;
 import com.privatechain.core.spi.ConsensusEngine;
-import org.apache.logging.log4j.internal.annotation.SuppressFBWarnings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.util.List;
 import java.util.NoSuchElementException;
