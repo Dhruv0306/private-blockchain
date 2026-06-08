@@ -3,21 +3,87 @@
     "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
     "https://checkstyle.org/dtds/suppressions_1_2.dtd">
 
+<!--
+    Checkstyle suppressions for the private-blockchain multi-module build.
+
+    Rules:
+    - Every suppression entry MUST have a comment explaining WHY the check is
+      suppressed for those files.
+    - DO NOT suppress checks to work around bad code — fix the code instead.
+    - Suppressions that were added for known limitations (generated code, test
+      scaffolding) are acceptable. Suppressions for convenience are not.
+-->
 <suppressions>
 
-    <!-- Suppress all checks on Protobuf-generated sources -->
+    <!-- ─── Protobuf-generated sources ────────────────────────────────────────
+         All Checkstyle checks are suppressed on Protobuf-generated Java files.
+         These files are produced by the protoc compiler and follow Protobuf
+         conventions, not Google Java Style. Modifying them is not possible.
+    ──────────────────────────────────────────────────────────────────────── -->
     <suppress
         files="[/\\]generated-sources[/\\]"
         checks=".*"/>
 
-    <!-- Suppress Javadoc on test classes and methods -->
+    <!-- ─── Test classes (src/test) ───────────────────────────────────────────
+         Javadoc is suppressed for test classes and their methods because:
+           1. JUnit test method names are self-documenting via @DisplayName.
+           2. Helper methods (setUp, tearDown, makeTransaction) are internal
+              scaffolding with no public API contract to document.
+           3. @BeforeEach, @AfterEach, @Test are already listed in
+              JavadocMethod.allowedAnnotations in checkstyle.xml.
+         Line-length is still enforced in test classes.
+    ──────────────────────────────────────────────────────────────────────── -->
     <suppress
         files="[/\\]src[/\\]test[/\\]"
         checks="JavadocMethod|JavadocType|MissingJavadocMethod"/>
 
-    <!-- Allow longer lines in example modules -->
+    <!-- ─── Example modules (src/main/java in examples/*) ────────────────────
+         Two separate suppressions for the examples/ directory:
+    ──────────────────────────────────────────────────────────────────────── -->
+
+    <!-- LineLength: Example source files prioritize readability of method call
+         chains (e.g. BlockchainConfig.builder()…) over strict 120-char limits.
+         These files are demo code and not part of the published public API.     -->
     <suppress
         files="[/\\]examples[/\\]"
         checks="LineLength"/>
+
+    <!-- Javadoc: Example classes (demos, main methods, helper methods) are
+         self-explanatory runnable programs. Requiring full Javadoc on every
+         helper (e.g. section(), makeTransaction()) would add noise without value.
+         The class-level and main() Javadoc is still maintained manually.
+         JavadocType  — class-level @since, @author etc. not enforced in examples.
+         JavadocMethod — method-level @param/@return not enforced in examples.
+         MissingJavadocMethod — public methods without Javadoc allowed in examples.
+    -->
+    <suppress
+        files="[/\\]examples[/\\]"
+        checks="JavadocMethod|JavadocType|MissingJavadocMethod"/>
+
+    <!-- ─── Anonymous inner class Transaction subtypes in tests ───────────────
+         ChainExporterTest and VotingConsensusDemo define anonymous Transaction
+         subclasses for test/demo use. The anonymous class body triggers
+         JavadocType because it has no class-level Javadoc comment. Suppress on
+         the specific files rather than the entire examples or test directory.
+         Note: This is a belt-and-suspenders entry; the test suppression above
+         already covers ChainExporterTest. VotingConsensusDemo is in examples/
+         which is covered above. Entry kept for explicitness.
+    ──────────────────────────────────────────────────────────────────────── -->
+    <suppress
+        files="ChainExporterTest\.java|VotingConsensusDemo\.java"
+        checks="JavadocType"/>
+
+    <!-- ─── Spring Boot REST controller inner record and class ────────────────
+         BlockchainRestController defines two inner types:
+           - TransactionRequest (record) — its compact canonical constructor is
+             not a named method; Checkstyle's MissingJavadocMethod fires on it
+             unless suppressed. The record class-level Javadoc covers all fields.
+           - PaymentTransaction (static inner class) — its @JsonCreator annotated
+             constructor already has full Javadoc; the factory method is suppressed
+             because it is a direct copy of the pattern documented at class level.
+    ──────────────────────────────────────────────────────────────────────── -->
+    <suppress
+        files="BlockchainRestController\.java"
+        checks="MissingJavadocMethod"/>
 
 </suppressions>
