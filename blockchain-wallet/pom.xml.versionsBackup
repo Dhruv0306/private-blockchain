@@ -8,19 +8,17 @@
     <parent>
         <groupId>com.privatechain</groupId>
         <artifactId>private-blockchain</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>blockchain-consensus</artifactId>
+    <artifactId>blockchain-wallet</artifactId>
     <packaging>jar</packaging>
-    <name>Blockchain Consensus Implementations</name>
+    <name>Blockchain Wallet</name>
     <description>
-        Built-in ConsensusEngine implementations: Proof of Work (SHA-256 with
-        configurable difficulty and auto-adjustment), Proof of Authority (authorized
-        signer set), PBFT (3-phase Byzantine fault-tolerant), and Round Robin
-        (simple slot-based, for development). All implement the ConsensusEngine SPI
-        from blockchain-core.
+        EC key pair management, Wallet (sign transactions, derive address, compute
+        balance), WalletManager (create, import, list), and KeystoreSerializer
+        (AES-128-CTR encrypted keystore in Web3 Secret Storage v3 format).
     </description>
 
     <dependencies>
@@ -34,15 +32,20 @@
             <artifactId>blockchain-crypto</artifactId>
         </dependency>
 
-        <!-- Annotation types used by the core model classes that consensus depends on at compile time. -->
+        <!-- BouncyCastle for PBKDF2 and AES-CTR in keystore encryption -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+        </dependency>
+
+        <!-- Jackson for keystore JSON serialization -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
-        </dependency>
+
+        <!-- SpotBugs annotations (@SuppressFBWarnings) ─────────────────────── -->
+        <!-- provided scope: annotation is compile-time only; zero runtime footprint. -->
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>

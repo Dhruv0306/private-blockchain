@@ -8,18 +8,17 @@
     <parent>
         <groupId>com.privatechain</groupId>
         <artifactId>private-blockchain</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>example-custom-consensus</artifactId>
+    <artifactId>example-simple-chain</artifactId>
     <packaging>jar</packaging>
-    <name>Example: Custom Consensus Engine</name>
+    <name>Example: Simple Chain</name>
     <description>
-        Demonstrates implementing the ConsensusEngine SPI. Provides a
-        VotingConsensusEngine where block acceptance requires signed approval
-        votes from a majority of registered validators — a complete, runnable
-        example of the library's extension model.
+        Minimal standalone example. Creates a BlockchainNode with PoW, defines a
+        MoneyTransferTransaction subclass, submits transactions, mines a block, and
+        validates the chain. Run with: mvn exec:java
     </description>
 
     <dependencies>
@@ -29,27 +28,32 @@
             <artifactId>blockchain-core</artifactId>
         </dependency>
 
-        <!-- Cryptographic primitives -->
+        <!-- Cryptographic primitives (used by WalletManager internally) -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-crypto</artifactId>
         </dependency>
 
-        <!--
-             Consensus module — needed for ConsensusSupport.buildBlock() and
-             ConsensusSupport.isGenesis() used inside VotingConsensusEngine.
-             Added in M10 (T-074): VotingConsensusEngine delegates block assembly
-             to the shared ConsensusSupport utility rather than duplicating the logic.
-        -->
+        <!-- Consensus engines — ProofOfWorkEngine used in the demo -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-consensus</artifactId>
         </dependency>
 
-        <!-- Storage implementations — InMemoryStorage used in VotingConsensusDemo -->
+        <!-- Storage implementations — InMemoryStorage and ChainExporter used in the demo -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-storage</artifactId>
+        </dependency>
+
+        <!--
+             Wallet and key management — WalletManager and Wallet used in the demo.
+             Added in M10 (T-074): the demo requires wallet signing to illustrate
+             the full transaction lifecycle including ECDSA signatures.
+        -->
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-wallet</artifactId>
         </dependency>
 
         <!-- SLF4J / Logback for readable demo output -->
@@ -75,7 +79,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.3.0</version>
                 <configuration>
-                    <mainClass>com.privatechain.examples.VotingConsensusDemo</mainClass>
+                    <mainClass>com.privatechain.examples.SimpleChainDemo</mainClass>
                 </configuration>
             </plugin>
         </plugins>
