@@ -86,7 +86,7 @@ public class BlockchainAutoConfiguration {
      * Creates and wires the {@link BlockchainNode} bean from bound properties and
      * any user-provided override beans (T-070, T-072).
      *
-     * <h3>Dependency resolution order</h3>
+     * <h4>Dependency resolution order</h4>
      * <ol>
      *   <li>{@link ConsensusEngine} — user bean if present; else
      *       {@link ProofOfWorkEngine} with configured difficulty.</li>

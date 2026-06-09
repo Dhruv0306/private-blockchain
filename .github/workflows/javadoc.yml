@@ -56,7 +56,7 @@ jobs:
             #   - excludePackageNames: com.privatechain.examples
             # Output lands in: target/site/apidocs/
             -   name: Generate aggregate Javadoc
-                run: mvn -B javadoc:aggregate -q
+                run: mvn -B javadoc:aggregate --no-transfer-progress -Ddoclint=none
 
             # ── Verify output exists ───────────────────────────────────────────
             -   name: Verify Javadoc output
