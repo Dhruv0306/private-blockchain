@@ -1,25 +1,138 @@
 name: Release
 
+# ─── Trigger ──────────────────────────────────────────────────────────────────
+# This workflow fires when a version tag matching v* is pushed.
+#
+# Two ways to trigger a release:
+#
+# Option A — Use the maven-release-plugin (recommended for atomic version bumps):
+#   mvn release:prepare -Prelease   # bumps version, commits, pushes tag
+#   mvn release:perform -Prelease   # CI picks up the tag and runs this workflow
+#
+# Option B — Manual tag for a quick hotfix:
+#   mvn versions:set -DnewVersion=1.0.1
+#   git add -A && git commit -m "[release] set version 1.0.1"
+#   git tag v1.0.1 && git push origin main --tags
 on:
     push:
         tags:
             - 'v*'
 
+# ─── Permissions ──────────────────────────────────────────────────────────────
+# packages:write is required to publish to GitHub Packages.
+# contents:write is required to create a GitHub Release.
+permissions:
+    contents: write
+    packages: write
+
 jobs:
     release:
         runs-on: ubuntu-latest
+        name: Build, verify, and publish to GitHub Packages
 
         steps:
+            # ── Checkout ──────────────────────────────────────────────────────
+            # Fetch all tags and full history so that:
+            #   1. maven-release-plugin can verify the SCM state.
+            #   2. The release notes step can generate a meaningful changelog.
             -   uses: actions/checkout@v4
+                with:
+                    fetch-depth: 0
 
+            # ── JDK 21 with GitHub Packages authentication ────────────────────
+            # actions/setup-java writes a settings.xml entry that maps the
+            # server id "github" to the GITHUB_TOKEN. This server id matches
+            # the <distributionManagement> → <repository> id in the root pom.xml.
             -   name: Set up JDK 21
                 uses: actions/setup-java@v4
                 with:
                     java-version: '21'
                     distribution: 'temurin'
                     cache: maven
+                    # Configures ~/.m2/settings.xml with a <server> block for GitHub Packages:
+                    #   <server><id>github</id>
+                    #     <username>${env.GITHUB_ACTOR}</username>
+                    #     <password>${env.GITHUB_TOKEN}</password></server>
+                    server-id: github
+                    server-username: GITHUB_ACTOR
+                    server-password: GITHUB_TOKEN
 
-            -   name: Publish to GitHub Packages
-                run: mvn -B deploy
+            # ── Extract version from the tag ──────────────────────────────────
+            # The tag is "v1.0.0"; strip the leading "v" for display purposes.
+            -   name: Extract version from tag
+                id: version
+                run: |
+                    TAG="${{ github.ref_name }}"
+                    VERSION="${TAG#v}"
+                    echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+                    echo "Release version: ${VERSION}"
+
+            # ── Full build with all quality gates ─────────────────────────────
+            # Runs: compile → test → SpotBugs → JaCoCo → Checkstyle
+            # The release profile (activated by -Prelease) additionally attaches
+            # -sources.jar and -javadoc.jar to each module artifact.
+            #
+            # Performance tests are included in the release build to guard against
+            # any regression introduced during the release commit phase.
+            -   name: Full build and verify
+                run: mvn -B clean verify -Prelease
+                env:
+                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                    GITHUB_ACTOR: ${{ github.actor }}
+
+            # ── Deploy to GitHub Packages ──────────────────────────────────────
+            # Publishes all non-example modules to:
+            #   https://github.com/dhruv0306/private-blockchain/packages
+            #
+            # Example modules (examples/*) are excluded from deployment because:
+            #   1. They are not reusable library artifacts — they are runnable demos.
+            #   2. The root pom.xml marks them with <packaging>jar</packaging> but
+            #      the Checkstyle and JaCoCo exclusions mark them as non-published.
+            #
+            # -DskipTests is intentional here — tests ran in the previous step.
+            # Re-running them would be redundant and slow.
+            -   name: Deploy to GitHub Packages
+                run: >-
+                    mvn -B deploy
+                    -Prelease
+                    -DskipTests
+                    -pl blockchain-core,blockchain-crypto,blockchain-consensus,blockchain-storage,blockchain-network,blockchain-wallet,blockchain-access,blockchain-spring
+                env:
+                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                    GITHUB_ACTOR: ${{ github.actor }}
+
+            # ── Create GitHub Release ─────────────────────────────────────────
+            # Creates a formal GitHub Release from the pushed tag.
+            # The release body is auto-generated from commit messages between the
+            # previous tag and this one (GitHub's automatic release notes).
+            #
+            # This step does NOT upload the JARs as release assets because they
+            # are already published to GitHub Packages (the canonical package repo).
+            # Consumers use <dependency> coordinates, not direct JAR downloads.
+            -   name: Create GitHub Release
+                uses: softprops/action-gh-release@v2
+                with:
+                    tag_name: ${{ github.ref_name }}
+                    name: private-blockchain ${{ steps.version.outputs.version }}
+                    body: |
+                        ## private-blockchain ${{ steps.version.outputs.version }}
+
+                        Published to GitHub Packages. Add to your project:
+
+                        ```xml
+                        <dependency>
+                            <groupId>com.privatechain</groupId>
+                            <artifactId>blockchain-core</artifactId>
+                            <version>${{ steps.version.outputs.version }}</version>
+                        </dependency>
+                        ```
+
+                        See [CHANGELOG.md](https://github.com/dhruv0306/private-blockchain/blob/main/CHANGELOG.md)
+                        for full release notes.
+
+                        **Javadoc:** https://dhruv0306.github.io/private-blockchain/apidocs/
+                    generate_release_notes: true
+                    draft: false
+                    prerelease: false
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

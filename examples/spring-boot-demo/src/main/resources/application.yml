@@ -1,0 +1,51 @@
+spring:
+    application:
+        name: blockchain-spring-demo
+
+# ─── Blockchain autoconfiguration (blockchain-spring) ─────────────────────────
+# BlockchainAutoConfiguration reads these properties via @ConfigurationProperties
+# (prefix = "blockchain") and wires them into BlockchainConfig.builder().
+#
+# blockchain.enabled=true activates the @ConditionalOnProperty guard in
+# BlockchainAutoConfiguration; set too false to disable the entire auto-config.
+blockchain:
+    enabled: false
+    chain-id: spring-demo-chain
+
+    # PoW difficulty — lower values mine faster; 4 leading zero bits is the default.
+    # Set to 1 for instant demo mining; increase for realistic latency.
+    difficulty: 2
+
+    # TCP port for peer-to-peer networking (Milestone 7).
+    # Standalone demos can leave this at 8545; multi-node clusters need unique ports.
+    network-port: 8545
+
+    # Target block time in seconds — used by DifficultyAdjuster for auto-recalibration.
+    block-time-seconds: 5
+
+    # Maximum number of simultaneous peer connections.
+    max-peers: 10
+
+    # Mempool configuration
+    mempool:
+        # ISO-8601 duration: how long an unconfirmed transaction stays in the pool.
+        ttl: PT30M
+        # Maximum pool capacity; Integer.MAX_VALUE means unbounded.
+        max-size: 1000
+
+# ─── Spring Boot management / Actuator ────────────────────────────────────────
+management:
+    endpoints:
+        web:
+            exposure:
+                include: health,info,metrics
+    endpoint:
+        health:
+            show-details: always
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
+logging:
+    level:
+        com.privatechain: DEBUG
+        org.springframework: INFO
+        root: WARN

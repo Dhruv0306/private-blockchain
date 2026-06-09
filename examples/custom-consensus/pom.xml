@@ -23,22 +23,48 @@
     </description>
 
     <dependencies>
+        <!-- Core library — data model and SPI interfaces -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-core</artifactId>
         </dependency>
+
+        <!-- Cryptographic primitives -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-crypto</artifactId>
         </dependency>
+
+        <!--
+             Consensus module — needed for ConsensusSupport.buildBlock() and
+             ConsensusSupport.isGenesis() used inside VotingConsensusEngine.
+             Added in M10 (T-074): VotingConsensusEngine delegates block assembly
+             to the shared ConsensusSupport utility rather than duplicating the logic.
+        -->
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-consensus</artifactId>
+        </dependency>
+
+        <!-- Storage implementations — InMemoryStorage used in VotingConsensusDemo -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-storage</artifactId>
         </dependency>
+
+        <!-- SLF4J / Logback for readable demo output -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <version>4.8.3</version>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 

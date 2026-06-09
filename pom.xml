@@ -19,7 +19,7 @@
         Modular, embeddable Java private blockchain library with pluggable
         consensus, storage, validation, and access control.
     </description>
-    <url>https://github.com/your-org/private-blockchain</url>
+    <url>https://github.com/dhruv0306/private-blockchain</url>
 
     <licenses>
         <license>
@@ -27,6 +27,27 @@
             <url>https://www.apache.org/licenses/LICENSE-2.0</url>
         </license>
     </licenses>
+
+    <developers>
+        <developer>
+            <id>dhruv0306</id>
+            <name>Dhruv</name>
+            <url>https://github.com/dhruv0306</url>
+        </developer>
+    </developers>
+
+    <!-- ─── Source Control Management ────────────────────────
+         Required by maven-release-plugin for tag creation and
+         scm:tag goal. Updated in M10 from placeholder "your-org"
+         to the actual GitHub username "dhruv0306".
+    ──────────────────────────────────────────────────────── -->
+    <scm>
+        <connection>scm:git:https://github.com/dhruv0306/private-blockchain.git</connection>
+        <developerConnection>scm:git:https://github.com/dhruv0306/private-blockchain.git</developerConnection>
+        <url>https://github.com/dhruv0306/private-blockchain</url>
+        <!-- Replaced with the actual release tag by maven-release-plugin during release:prepare -->
+        <tag>HEAD</tag>
+    </scm>
 
     <!-- ─── Child modules ──────────────────────────────────── -->
     <modules>
@@ -88,7 +109,7 @@
              CVE-2026-29129 (7.5) TLS cipher preference order not preserved
              CVE-2026-29146 (7.5) Padding Oracle in EncryptInterceptor
              CVE-2026-34483 (7.5) JSON injection in JsonAccessLogValve
-             Fix: 10.1.54+ (stays on 10.x branch matching Spring Boot 3.x) -->
+             Fix: 10.1.55+ -->
         <tomcat.version>10.1.55</tomcat.version>
 
         <!-- protobuf-java 3.25.3 → 4.28.2
@@ -129,7 +150,6 @@
              data-feed client which was deprecated and now returns 403/404.
              Version 12.x ships the correct NVD API v2 client and properly
              handles the rate-limiting and authentication handshake.
-             Reference: https://github.com/dependency-check/DependencyCheck
              ═══════════════════════════════════════════════════════════ -->
         <owasp.version>12.2.2</owasp.version>
 
@@ -137,6 +157,9 @@
         <os.maven.plugin.version>1.7.1</os.maven.plugin.version>
         <gpg.plugin.version>3.2.4</gpg.plugin.version>
         <nexus.staging.version>1.7.0</nexus.staging.version>
+
+        <!-- M10 additions: maven-release-plugin property for skip-on-demand -->
+        <skipPerformanceTests/>
     </properties>
 
     <!-- ─── Dependency Management (BOM) ──────────────────── -->
@@ -217,7 +240,6 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-buffer</artifactId>
@@ -256,11 +278,6 @@
 
             <!-- ═══════════════════════════════════════════════════════════
                  NETTY CODEC OVERRIDES — force all vulnerable codecs to 4.2.13
-                 netty-all-4.2.13.Final's BOM imports codec dependencies at
-                 4.2.12.Final. These explicit overrides ensure all transitive
-                 codec modules match the patched 4.2.13.Final version.
-                 Fixes CVE-2026-42581 (9.8), CVE-2026-42579 (9.1),
-                 CVE-2026-42584 (9.1), CVE-2026-42577 (7.5), and others.
                  ═══════════════════════════════════════════════════════════ -->
             <dependency>
                 <groupId>io.netty</groupId>
@@ -438,10 +455,19 @@
                 <version>${logback.version}</version>
                 <scope>runtime</scope>
             </dependency>
+            <!-- Pin logback-core to the same version as logback-classic.
+                 Without this, Spring Boot's BOM resolves logback-core at a different
+                 (older) version, causing NoSuchMethodError on VersionUtil.checkForVersionEquality
+                 at startup because logback-classic 1.5.25 calls a method that only exists
+                 in logback-core 1.5.7+. Both jars must always be the same version. -->
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>${logback.version}</version>
+            </dependency>
 
             <!-- ═══════════════════════════════════════════════════════════
                  TOMCAT — explicit overrides to outpace Spring Boot BOM.
-                 Fix version: 10.1.54 (10.x branch, compatible with SB 3.x)
                  ═══════════════════════════════════════════════════════════ -->
             <dependency>
                 <groupId>org.apache.tomcat.embed</groupId>
@@ -508,16 +534,14 @@
                 <version>4.0.6</version>
             </dependency>
 
-            <!-- json-smart: force upgrade over BOM default
-                 CVE-2024-57699 (7.5) Stack exhaustion via deeply nested JSON. -->
+            <!-- json-smart: force upgrade over BOM default -->
             <dependency>
                 <groupId>net.minidev</groupId>
                 <artifactId>json-smart</artifactId>
                 <version>2.5.2</version>
             </dependency>
 
-            <!-- xmlunit-core: force upgrade over test BOM default
-                 CVE-2024-31573 (4.0) XSLT extension RCE (test-scope only). -->
+            <!-- xmlunit-core: force upgrade over test BOM default -->
             <dependency>
                 <groupId>org.xmlunit</groupId>
                 <artifactId>xmlunit-core</artifactId>
@@ -525,8 +549,7 @@
                 <scope>test</scope>
             </dependency>
 
-            <!-- assertj-core: force upgrade
-                 CVE-2026-24400 (7.3) XXE in XmlStringPrettyFormatter (test-scope). -->
+            <!-- assertj-core: force upgrade -->
             <dependency>
                 <groupId>org.assertj</groupId>
                 <artifactId>assertj-core</artifactId>
@@ -534,14 +557,10 @@
                 <scope>test</scope>
             </dependency>
 
-            <!-- SpotBugs annotations — compile-time only (@SuppressFBWarnings).
-                 Used by blockchain-core and any module that needs to suppress
-                 false-positive SpotBugs findings with documented justification.
-                 provided scope: zero runtime footprint for consumers.           -->
+            <!-- SpotBugs annotations — compile-time only (@SuppressFBWarnings). -->
             <dependency>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-annotations</artifactId>
-                <!-- Version aligned with spotbugs-maven-plugin 4.8.3.1 -->
                 <version>4.8.3</version>
                 <scope>provided</scope>
             </dependency>
@@ -626,6 +645,12 @@
                             <include>**/*Test.java</include>
                             <include>**/*Tests.java</include>
                         </includes>
+                        <!--
+                            M10 (T-078): PerformanceTest is tagged @Tag("performance").
+                            Exclude on slow CI runners with:
+                            mvn verify -DskipPerformanceTests=performance
+                        -->
+                        <excludedGroups>${skipPerformanceTests}</excludedGroups>
                     </configuration>
                 </plugin>
 
@@ -712,59 +737,44 @@
                     </executions>
                 </plugin>
 
-                <!-- ═══════════════════════════════════════════════════════════
-                     OWASP Dependency-Check — Security scan (on-demand only).
-                     Activated via: mvn -Psecurity verify
-
-                     NVD API Key configuration (in priority order):
-                       1. Environment variable NVD_API_KEY  (preferred in CI)
-                       2. Maven property ${nvdApiKey} from settings.xml profile
-                          (your ~/.m2/settings.xml profile id=nvd-identity already
-                           sets this via <nvdApiKey>your-key</nvdApiKey>)
-
-                     Why 12.2.2 (was 9.2.0):
-                       v9.x shipped the legacy NVD data-feed client which NIST
-                       decommissioned. v12.x uses the correct NVD API v2 client
-                       that honors the API key and rate-limit headers properly.
-
-                     nvdApiDelay 2000ms:
-                       With a valid API key the NVD allows 50 requests per 30s.
-                       2 seconds between calls stays safely under the limit.
-                       (Old value of 16000ms would make a full DB download take
-                       many hours unnecessarily.)
-                     ═══════════════════════════════════════════════════════════ -->
+                <!-- OWASP Dependency-Check — on-demand: mvn -Psecurity verify -->
                 <plugin>
                     <groupId>org.owasp</groupId>
                     <artifactId>dependency-check-maven</artifactId>
                     <version>${owasp.version}</version>
                     <configuration>
-                        <!-- Fail the build if any dependency has CVSS >= 7.0 (NFR-SEC-06) -->
                         <failBuildOnCVSS>7</failBuildOnCVSS>
                         <suppressionFiles>
                             <suppressionFile>owasp-suppressions.xml</suppressionFile>
                         </suppressionFiles>
-                        <!-- Priority 1: CI environment variable (recommended for pipelines) -->
                         <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
-                        <!-- Priority 2: Maven property from settings.xml (local development).
-                             Your ~/.m2/settings.xml profile already sets ${nvdApiKey}. -->
                         <nvdApiKey>${nvdApiKey}</nvdApiKey>
-                        <!-- 2 seconds between NVD API calls — safe with a valid key -->
                         <nvdApiDelay>2000</nvdApiDelay>
-                        <!-- Skip test-scoped and provided-scoped deps from scan
-                             (reduces noise from compile-only annotation libs) -->
                         <skipTestScope>false</skipTestScope>
                         <skipProvidedScope>false</skipProvidedScope>
                     </configuration>
                 </plugin>
 
-                <!-- Javadoc -->
+                <!-- ═══════════════════════════════════════════════════════════
+                     Javadoc — M10 (T-076, T-081)
+                     Per-module: doclint=all enforces strict documentation on
+                     every module's own classes during mvn verify.
+                     Aggregate: doclint=none used for the aggregate site report
+                     so that unresolvable cross-module @link references to do not
+                     break the aggregate build.
+                     ═══════════════════════════════════════════════════════════ -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>3.7.0</version>
                     <configuration>
+                        <!-- Per-module: strict (enforces NFR-UX-01) -->
                         <doclint>all,-missing</doclint>
                         <quiet>true</quiet>
+                        <detectJavaApiLink>false</detectJavaApiLink>
+                        <!-- Exclude example packages from doclint enforcement;
+                             they are not part of the published public API -->
+                        <excludePackageNames>com.privatechain.examples</excludePackageNames>
                     </configuration>
                     <executions>
                         <execution>
@@ -776,7 +786,7 @@
                     </executions>
                 </plugin>
 
-                <!-- Sources jar -->
+                <!-- Sources jar — required alongside Javadoc jar for publishing -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-source-plugin</artifactId>
@@ -791,7 +801,7 @@
                     </executions>
                 </plugin>
 
-                <!-- GPG signing for Maven Central -->
+                <!-- GPG signing — activated by the release profile -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-gpg-plugin</artifactId>
@@ -805,19 +815,6 @@
                             </goals>
                         </execution>
                     </executions>
-                </plugin>
-
-                <!-- Nexus staging -->
-                <plugin>
-                    <groupId>org.sonatype.plugins</groupId>
-                    <artifactId>nexus-staging-maven-plugin</artifactId>
-                    <version>${nexus.staging.version}</version>
-                    <extensions>true</extensions>
-                    <configuration>
-                        <serverId>ossrh</serverId>
-                        <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-                        <autoReleaseAfterClose>false</autoReleaseAfterClose>
-                    </configuration>
                 </plugin>
 
                 <!-- SpotBugs (FindBugs successor) -->
@@ -848,6 +845,39 @@
                     </executions>
                 </plugin>
 
+                <!-- ═══════════════════════════════════════════════════════════
+                     Maven Release Plugin — M10 (T-080)
+                     Manages the version bump, SCM tag, and deploy to
+                     GitHub Packages in a single atomic operation.
+
+                     Usage:
+                       mvn release:prepare -Prelease   # bumps version, commits, tags
+                       mvn release:perform -Prelease   # checks out tag, builds, deploys
+                     ═══════════════════════════════════════════════════════════ -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>3.1.1</version>
+                    <configuration>
+                        <!-- Tag format: v1.0.0, v1.0.1, ... -->
+                        <tagNameFormat>v@{project.version}</tagNameFormat>
+                        <!-- All child modules automatically get the same version -->
+                        <autoVersionSubmodules>true</autoVersionSubmodules>
+                        <!-- Commit message prefix (avoids re-triggering javadoc.yml) -->
+                        <scmCommentPrefix>[release]</scmCommentPrefix>
+                        <!-- Full build + test run before tagging (no shortcuts) -->
+                        <preparationGoals>clean verify</preparationGoals>
+                        <completionGoals>clean install</completionGoals>
+                        <!-- Push the release commit and tag to the remote immediately -->
+                        <pushChanges>true</pushChanges>
+                        <!-- Check out from local clone (faster in CI) -->
+                        <localCheckout>true</localCheckout>
+                        <!-- Activate the release profile during perform so sources/javadoc
+                             JARs are attached before deploy -->
+                        <releaseProfiles>release</releaseProfiles>
+                    </configuration>
+                </plugin>
+
             </plugins>
         </pluginManagement>
 
@@ -872,22 +902,74 @@
         </plugins>
     </build>
 
+    <!-- ═══════════════════════════════════════════════════════════
+         Reporting — M10 (T-081)
+         mvn javadoc:aggregate -pl . generates the aggregate Javadoc
+         site under target/site/apidocs/. The javadoc.yml workflow
+         picks up that directory and publishes it to GitHub Pages.
+
+         doclint:none here (aggregate only) — strict doclint enforcement
+         is in the per-module pluginManagement configuration above.
+         The aggregate report uses "none" because cross-module @link
+         resolution may produce spurious doclint warnings for classes
+         whose JARs are not on the javadoc tool's classpath at aggregate time.
+    ═══════════════════════════════════════════════════════════ -->
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.7.0</version>
+                <inherited>false</inherited>
+                <reportSets>
+                    <reportSet>
+                        <id>aggregate</id>
+                        <inherited>false</inherited>
+                        <reports>
+                            <report>aggregate</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+                <configuration>
+                    <!-- Relaxed for aggregate — avoids cross-module false positives -->
+                    <doclint>none</doclint>
+                    <quiet>true</quiet>
+                    <detectJavaApiLink>false</detectJavaApiLink>
+                    <!-- Exclude example package from aggregate API docs -->
+                    <excludePackageNames>com.privatechain.examples</excludePackageNames>
+                </configuration>
+            </plugin>
+        </plugins>
+    </reporting>
+
     <!-- ─── Profiles ──────────────────────────────────────── -->
     <profiles>
 
-        <!-- Release profile: sign + deploy to Maven Central -->
+        <!-- ═══════════════════════════════════════════════════════════
+             Release profile — M10 (T-080)
+             Activated automatically by maven-release-plugin via
+             <releaseProfiles>release</releaseProfiles> in the plugin config
+             above, and manually with -Prelease.
+
+             Attaches:
+               - sources JAR  (maven-source-plugin)
+               - Javadoc JAR  (maven-javadoc-plugin, doclint=none for the jar)
+               - GPG signature (maven-gpg-plugin)
+
+             The GPG plugin requires:
+               - GPG_PRIVATE_KEY   secret in GitHub Actions (armored private key)
+               - GPG_PASSPHRASE    secret in GitHub Actions
+             These are configured in release.yml and loaded into the Maven
+             settings.xml by actions/setup-java.
+
+             For GitHub Packages (no GPG requirement):
+             Comment out the maven-gpg-plugin block below.
+             GitHub Packages authenticates via GITHUB_TOKEN, not GPG.
+        ═══════════════════════════════════════════════════════════ -->
         <profile>
             <id>release</id>
             <build>
                 <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                    </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
@@ -895,27 +977,27 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <!-- Relaxed doclint for the -javadoc.jar artifact so the
+                                 release build does not fail on example package warnings -->
+                            <doclint>none</doclint>
+                            <quiet>true</quiet>
+                        </configuration>
                     </plugin>
+                    <!-- Uncomment when publishing to Maven Central (requires GPG key).
+                         GitHub Packages does not need GPG signing.
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                    </plugin>
+                    -->
                 </plugins>
             </build>
         </profile>
 
         <!-- ═══════════════════════════════════════════════════════════
              Security scan profile — run on demand: mvn -Psecurity verify
-
-             This profile activates the OWASP Dependency-Check aggregate
-             goal. All plugin configuration (API key, delay, CVSS threshold,
-             suppression file) is inherited from pluginManagement above —
-             no duplication needed here.
-
-             Local dev  : mvn -Psecurity verify
-                          (picks up ${nvdApiKey} from ~/.m2/settings.xml)
-             CI pipeline: NVD_API_KEY=xxx mvn -Psecurity verify
-                          (picks up NVD_API_KEY env var, takes precedence)
-
-             First-time run: the NVD database download takes 10–20 minutes.
-             Subsequent runs (within 7 days): only incremental updates, ~30s.
-             ═══════════════════════════════════════════════════════════ -->
+        ═══════════════════════════════════════════════════════════ -->
         <profile>
             <id>security</id>
             <build>
@@ -923,10 +1005,6 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
-                        <!-- No <configuration> block here — all settings are
-                             inherited from pluginManagement. Duplicating config
-                             here would silently override failBuildOnCVSS and
-                             suppressionFiles, weakening the security gate. -->
                         <executions>
                             <execution>
                                 <id>owasp-aggregate</id>
@@ -943,23 +1021,31 @@
 
     </profiles>
 
-    <!-- ─── Distribution management ──────────────────────── -->
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-    </distributionManagement>
+    <!-- ─── Distribution management — M10 (T-080) ────────────
+         Updated from OSSRH (Maven Central staging) to GitHub Packages.
+         The server id "github" must match the server configured by
+         actions/setup-java in release.yml (server-id: github).
 
-    <scm>
-        <connection>scm:git:https://github.com/your-org/private-blockchain.git</connection>
-        <developerConnection>scm:git:git@github.com:your-org/private-blockchain.git</developerConnection>
-        <url>https://github.com/your-org/private-blockchain</url>
-        <tag>HEAD</tag>
-    </scm>
+         Authentication:
+           CI:    GITHUB_TOKEN secret (automatic; no additional setup)
+           Local: add a <server> entry to ~/.m2/settings.xml:
+             <server>
+               <id>github</id>
+               <username>${env.GITHUB_ACTOR}</username>
+               <password>${env.GITHUB_TOKEN}</password>
+             </server>
+    ──────────────────────────────────────────────────────── -->
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages — private-blockchain releases</name>
+            <url>https://maven.pkg.github.com/dhruv0306/private-blockchain</url>
+        </repository>
+        <snapshotRepository>
+            <id>github</id>
+            <name>GitHub Packages — private-blockchain snapshots</name>
+            <url>https://maven.pkg.github.com/dhruv0306/private-blockchain</url>
+        </snapshotRepository>
+    </distributionManagement>
 
 </project>

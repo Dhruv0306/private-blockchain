@@ -1,0 +1,94 @@
+name: Javadoc Site
+
+# ─── Triggers ─────────────────────────────────────────────────────────────────
+# Publish on every push to main (after a successful merge / direct push) and
+# allow manual runs from the Actions tab via workflow_dispatch.
+on:
+    push:
+        branches: [ main ]
+    workflow_dispatch:
+        inputs:
+            reason:
+                description: 'Reason for manual Javadoc publish'
+                required: false
+                default: 'manual trigger'
+
+# ─── Permissions ──────────────────────────────────────────────────────────────
+# contents:write is required for peaceiris/actions-gh-pages to push to gh-pages.
+permissions:
+    contents: write
+
+jobs:
+    publish-javadoc:
+        runs-on: ubuntu-latest
+        name: Generate and publish aggregate Javadoc
+
+        steps:
+            # ── Checkout ──────────────────────────────────────────────────────
+            -   uses: actions/checkout@v4
+                with:
+                    # Fetch all history so the Javadoc commit message can reference
+                    # the triggering commit SHA.
+                    fetch-depth: 1
+
+            # ── JDK setup ─────────────────────────────────────────────────────
+            # Use JDK 21 for Javadoc generation — produces the richest output
+            # (enhanced search, improved record component docs) while the library
+            # source is still compiled with --release 17.
+            -   name: Set up JDK 21
+                uses: actions/setup-java@v4
+                with:
+                    java-version: '21'
+                    distribution: 'temurin'
+                    cache: maven
+
+            # ── Install all modules (skip tests for speed) ────────────────────
+            # mvn install is required before javadoc:aggregate so that all module
+            # JARs are in the local repository and cross-module @see / @link
+            # references resolve correctly.
+            -   name: Install project (skip tests)
+                run: mvn -B install -DskipTests -q
+
+            # ── Generate aggregate Javadoc ─────────────────────────────────────
+            # javadoc:aggregate runs from the root POM and includes all child
+            # modules. The <reporting> section in pom.xml configures:
+            #   - doclint: none (aggregate report — no build failure on warnings)
+            #   - excludePackageNames: com.privatechain.examples
+            # Output lands in: target/site/apidocs/
+            -   name: Generate aggregate Javadoc
+                run: mvn -B javadoc:aggregate -pl . -q
+
+            # ── Verify output exists ───────────────────────────────────────────
+            -   name: Verify Javadoc output
+                run: |
+                    if [ ! -f "target/site/apidocs/index.html" ]; then
+                        echo "ERROR: target/site/apidocs/index.html not found."
+                        echo "Check the maven-javadoc-plugin configuration in pom.xml."
+                        exit 1
+                    fi
+                    echo "Javadoc generated successfully."
+                    echo "Entry count: $(find target/site/apidocs -type f | wc -l) files"
+
+            # ── Deploy to GitHub Pages ─────────────────────────────────────────
+            # peaceiris/actions-gh-pages pushes the content of publish_dir to the
+            # gh-pages branch under destination_dir. Subsequent publishes append
+            # to the same branch without overwriting other subdirectories.
+            #
+            # Pre-requisite (one-time repo setup):
+            #   Settings → Pages → Source: Deploy from branch → Branch: gh-pages / root
+            #
+            # Published URL: https://dhruv0306.github.io/private-blockchain/apidocs/
+            -   name: Deploy to GitHub Pages
+                uses: peaceiris/actions-gh-pages@v4
+                with:
+                    github_token: ${{ secrets.GITHUB_TOKEN }}
+                    publish_dir: ./target/site/apidocs
+                    destination_dir: apidocs
+                    # The commit message includes the SHA of the triggering commit
+                    # for full traceability of which source revision produced the docs.
+                    commit_message: >-
+                        docs: update Javadoc site from ${{ github.sha }} [skip ci]
+                    # Keep the existing gh-pages history; don't force-push
+                    force_orphan: false
+                    # Preserve any other directories on gh-pages (e.g. a landing page)
+                    keep_files: true

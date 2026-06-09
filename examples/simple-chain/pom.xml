@@ -22,26 +22,53 @@
     </description>
 
     <dependencies>
+        <!-- Core library — data model and SPI interfaces -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-core</artifactId>
         </dependency>
+
+        <!-- Cryptographic primitives (used by WalletManager internally) -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-crypto</artifactId>
         </dependency>
+
+        <!-- Consensus engines — ProofOfWorkEngine used in the demo -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-consensus</artifactId>
         </dependency>
+
+        <!-- Storage implementations — InMemoryStorage and ChainExporter used in the demo -->
         <dependency>
             <groupId>com.privatechain</groupId>
             <artifactId>blockchain-storage</artifactId>
         </dependency>
+
+        <!--
+             Wallet and key management — WalletManager and Wallet used in the demo.
+             Added in M10 (T-074): the demo requires wallet signing to illustrate
+             the full transaction lifecycle including ECDSA signatures.
+        -->
+        <dependency>
+            <groupId>com.privatechain</groupId>
+            <artifactId>blockchain-wallet</artifactId>
+        </dependency>
+
+        <!-- SLF4J / Logback for readable demo output -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <version>4.8.3</version>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 
