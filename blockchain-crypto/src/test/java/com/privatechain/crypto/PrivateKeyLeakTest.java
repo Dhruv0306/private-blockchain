@@ -69,133 +69,6 @@ class PrivateKeyLeakTest {
 
     // ─── toString() tests ─────────────────────────────────────────────────────
 
-    @Nested
-    @DisplayName("ECKeyPair.toString()")
-    class ToStringTests {
-
-        @Test
-        @DisplayName("must NOT contain the private key hex")
-        void toStringDoesNotExposePrivateKey() {
-            String privateHex = KEY_PAIR.getPrivateKeyHex();
-            String repr = KEY_PAIR.toString();
-
-            assertFalse(repr.contains(privateHex),
-                "ECKeyPair.toString() must not expose the private key hex. Output: " + repr);
-        }
-
-        @Test
-        @DisplayName("must contain a masking indicator [REDACTED]")
-        void toStringContainsMaskingIndicator() {
-            String repr = KEY_PAIR.toString();
-
-            assertTrue(repr.contains("[REDACTED]"),
-                "ECKeyPair.toString() must contain '[REDACTED]' to signal masking. Got: " + repr);
-        }
-
-        @Test
-        @DisplayName("must still include the public key for identification")
-        void toStringContainsPublicKeyPrefix() {
-            String publicHex = KEY_PAIR.getPublicKeyHex();
-            String repr = KEY_PAIR.toString();
-
-            // The public key appears in truncated form (first 16 chars + "..."); verify it
-            // at least starts with the first 8 chars so the key is still identifiable.
-            String expectedPrefix = publicHex.substring(0, Math.min(8, publicHex.length()));
-            assertTrue(repr.contains(expectedPrefix),
-                "ECKeyPair.toString() must include a recognisable public key prefix. "
-                    + "Expected prefix '" + expectedPrefix + "' in: " + repr);
-        }
-    }
-
-    // ─── Signing log-capture tests ────────────────────────────────────────────
-
-    @Nested
-    @DisplayName("ECDSASignatureUtil — no private key in log messages")
-    class SigningLogTests {
-
-        @Test
-        @DisplayName("sign() must not emit private key to any JUL logger")
-        void signDoesNotLogPrivateKey() {
-            String privateHex = KEY_PAIR.getPrivateKeyHex();
-            byte[] data = "test-payload".getBytes(StandardCharsets.UTF_8);
-
-            // Perform the signing operation that exercises ECDSASignatureUtil.sign()
-            byte[] signature = ECDSASignatureUtil.sign(data, KEY_PAIR);
-            assertNotNull(signature, "sign() must return a non-null signature");
-            assertTrue(signature.length > 0, "signature must be non-empty");
-
-            // Inspect every captured log record for private key exposure
-            assertNoPrivateKeyInLogs(privateHex);
-        }
-
-        @Test
-        @DisplayName("verify() must not emit private key to any JUL logger")
-        void verifyDoesNotLogPrivateKey() {
-            String privateHex = KEY_PAIR.getPrivateKeyHex();
-            byte[] data = "verify-payload".getBytes(StandardCharsets.UTF_8);
-            byte[] signature = ECDSASignatureUtil.sign(data, KEY_PAIR);
-
-            // Perform verification
-            boolean valid = ECDSASignatureUtil.verify(data, signature, KEY_PAIR);
-            assertTrue(valid, "verify() must return true for a freshly signed payload");
-
-            // Check no private key leaked
-            assertNoPrivateKeyInLogs(privateHex);
-        }
-
-        @Test
-        @DisplayName("sign() + verify() round-trip produces no private key in logs")
-        void fullRoundTripDoesNotLogPrivateKey() {
-            String privateHex = KEY_PAIR.getPrivateKeyHex();
-            byte[] data = "round-trip-test".getBytes(StandardCharsets.UTF_8);
-
-            byte[] signature = ECDSASignatureUtil.sign(data, KEY_PAIR);
-            boolean valid = ECDSASignatureUtil.verify(data, signature, KEY_PAIR);
-
-            assertTrue(valid, "round-trip must produce a valid signature");
-            assertNoPrivateKeyInLogs(privateHex);
-        }
-    }
-
-    // ─── Key generation log tests ─────────────────────────────────────────────
-
-    @Nested
-    @DisplayName("KeyPairGenerator — no private key in log messages")
-    class KeyGenLogTests {
-
-        @Test
-        @DisplayName("generateECKeyPair() must not emit private key to any JUL logger")
-        void generateDoesNotLogPrivateKey() {
-            // Generate a brand-new key pair and capture any log messages produced
-            ECKeyPair freshPair = KeyPairGenerator.generateECKeyPair();
-            String privateHex = freshPair.getPrivateKeyHex();
-
-            assertNoPrivateKeyInLogs(privateHex);
-        }
-
-        @Test
-        @DisplayName("fromPrivateKeyHex() import must not re-emit the key to logs")
-        void importDoesNotLogPrivateKey() {
-            String privateHex = KEY_PAIR.getPrivateKeyHex();
-
-            // Reconstruct — this exercises the import path
-            ECKeyPair restored = KeyPairGenerator.fromPrivateKeyHex(privateHex);
-            assertNotNull(restored);
-
-            // Reset captured messages (they may include the hex from the call argument
-            // being stringified in the stack, which is out of our control). We focus on
-            // messages produced by the library's own logging statements.
-            // Narrow check: the hex should not appear in any Logger.log() call body.
-            for (LogRecord record : capturingHandler.getRecords()) {
-                String msg = record.getMessage() == null ? "" : record.getMessage();
-                assertFalse(msg.contains(privateHex),
-                    "Logger.log() body must not contain the private key hex. Found in: " + msg);
-            }
-        }
-    }
-
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
     /**
      * Asserts that none of the log records captured since {@link #attachLogCapture()}
      * contain {@code privateKeyHex} in their formatted message body.
@@ -215,7 +88,7 @@ class PrivateKeyLeakTest {
         }
     }
 
-    // ─── JUL log capture utility ──────────────────────────────────────────────
+    // ─── Signing log-capture tests ────────────────────────────────────────────
 
     /**
      * A {@link Handler} that accumulates all {@link LogRecord} instances published
@@ -269,6 +142,133 @@ class PrivateKeyLeakTest {
          */
         List<LogRecord> getRecords() {
             return Collections.unmodifiableList(records);
+        }
+    }
+
+    // ─── Key generation log tests ─────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("ECKeyPair.toString()")
+    class ToStringTests {
+
+        @Test
+        @DisplayName("must NOT contain the private key hex")
+        void toStringDoesNotExposePrivateKey() {
+            String privateHex = KEY_PAIR.getPrivateKeyHex();
+            String repr = KEY_PAIR.toString();
+
+            assertFalse(repr.contains(privateHex),
+                "ECKeyPair.toString() must not expose the private key hex. Output: " + repr);
+        }
+
+        @Test
+        @DisplayName("must contain a masking indicator [REDACTED]")
+        void toStringContainsMaskingIndicator() {
+            String repr = KEY_PAIR.toString();
+
+            assertTrue(repr.contains("[REDACTED]"),
+                "ECKeyPair.toString() must contain '[REDACTED]' to signal masking. Got: " + repr);
+        }
+
+        @Test
+        @DisplayName("must still include the public key for identification")
+        void toStringContainsPublicKeyPrefix() {
+            String publicHex = KEY_PAIR.getPublicKeyHex();
+            String repr = KEY_PAIR.toString();
+
+            // The public key appears in truncated form (first 16 chars + "..."); verify it
+            // at least starts with the first 8 chars so the key is still identifiable.
+            String expectedPrefix = publicHex.substring(0, Math.min(8, publicHex.length()));
+            assertTrue(repr.contains(expectedPrefix),
+                "ECKeyPair.toString() must include a recognisable public key prefix. "
+                    + "Expected prefix '" + expectedPrefix + "' in: " + repr);
+        }
+    }
+
+    // ─── Private helpers ──────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("ECDSASignatureUtil — no private key in log messages")
+    class SigningLogTests {
+
+        @Test
+        @DisplayName("sign() must not emit private key to any JUL logger")
+        void signDoesNotLogPrivateKey() {
+            String privateHex = KEY_PAIR.getPrivateKeyHex();
+            byte[] data = "test-payload".getBytes(StandardCharsets.UTF_8);
+
+            // Perform the signing operation that exercises ECDSASignatureUtil.sign()
+            byte[] signature = ECDSASignatureUtil.sign(data, KEY_PAIR);
+            assertNotNull(signature, "sign() must return a non-null signature");
+            assertTrue(signature.length > 0, "signature must be non-empty");
+
+            // Inspect every captured log record for private key exposure
+            assertNoPrivateKeyInLogs(privateHex);
+        }
+
+        @Test
+        @DisplayName("verify() must not emit private key to any JUL logger")
+        void verifyDoesNotLogPrivateKey() {
+            String privateHex = KEY_PAIR.getPrivateKeyHex();
+            byte[] data = "verify-payload".getBytes(StandardCharsets.UTF_8);
+            byte[] signature = ECDSASignatureUtil.sign(data, KEY_PAIR);
+
+            // Perform verification
+            boolean valid = ECDSASignatureUtil.verify(data, signature, KEY_PAIR);
+            assertTrue(valid, "verify() must return true for a freshly signed payload");
+
+            // Check no private key leaked
+            assertNoPrivateKeyInLogs(privateHex);
+        }
+
+        @Test
+        @DisplayName("sign() + verify() round-trip produces no private key in logs")
+        void fullRoundTripDoesNotLogPrivateKey() {
+            String privateHex = KEY_PAIR.getPrivateKeyHex();
+            byte[] data = "round-trip-test".getBytes(StandardCharsets.UTF_8);
+
+            byte[] signature = ECDSASignatureUtil.sign(data, KEY_PAIR);
+            boolean valid = ECDSASignatureUtil.verify(data, signature, KEY_PAIR);
+
+            assertTrue(valid, "round-trip must produce a valid signature");
+            assertNoPrivateKeyInLogs(privateHex);
+        }
+    }
+
+    // ─── JUL log capture utility ──────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("KeyPairGenerator — no private key in log messages")
+    class KeyGenLogTests {
+
+        @Test
+        @DisplayName("generateECKeyPair() must not emit private key to any JUL logger")
+        void generateDoesNotLogPrivateKey() {
+            // Generate a brand-new key pair and capture any log messages produced
+            ECKeyPair freshPair = KeyPairGenerator.generateECKeyPair();
+            String privateHex = freshPair.getPrivateKeyHex();
+
+            assertNoPrivateKeyInLogs(privateHex);
+        }
+
+        @Test
+        @DisplayName("fromPrivateKeyHex() import must not re-emit the key to logs")
+        void importDoesNotLogPrivateKey() {
+            String privateHex = KEY_PAIR.getPrivateKeyHex();
+
+            // Reconstruct — this exercises the import path
+            ECKeyPair restored = KeyPairGenerator.fromPrivateKeyHex(privateHex);
+            assertNotNull(restored);
+
+            // Reset captured messages (they may include the hex from the call argument
+            // being stringified in the stack, which is out of our control). We focus on
+            // messages produced by the library's own logging statements.
+            // Narrow check: the hex should not appear in any Logger.log() call body.
+            for (LogRecord record : capturingHandler.getRecords()) {
+                String msg = record.getMessage() == null ? "" : record.getMessage();
+                assertFalse(msg.contains(privateHex),
+                    "Logger.log() body must not contain the private key hex. Found in: " + msg);
+            }
         }
     }
 }

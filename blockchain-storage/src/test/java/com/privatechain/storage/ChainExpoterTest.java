@@ -42,6 +42,30 @@ class ChainExporterTest {
      */
     private InMemoryStorage storage;
 
+    /**
+     * Creates a minimal concrete {@link Transaction} subclass for testing.
+     *
+     * <p>Defined as an anonymous inner class here to keep the test self-contained
+     * without requiring {@code MoneyTransferTransaction} from the examples module
+     * on the test classpath.</p>
+     *
+     * @param sender   sender address
+     * @param receiver receiver address
+     * @param amount   decimal amount string
+     * @return an unsigned transaction ready for submission
+     */
+    private static Transaction makeTransaction(String sender, String receiver, String amount) {
+        return new Transaction(
+            UUID.randomUUID(),
+            sender,
+            receiver,
+            new BigDecimal(amount),
+            Instant.now(),
+            Map.of()) {
+            // Anonymous subclass — no extra fields needed for this test
+        };
+    }
+
     @BeforeEach
     void setUp() {
         storage = new InMemoryStorage();
@@ -52,12 +76,14 @@ class ChainExporterTest {
         node.start();
     }
 
+    // ─── toJson ───────────────────────────────────────────────────────────────
+
     @AfterEach
     void tearDown() {
         node.stop();
     }
 
-    // ─── toJson ───────────────────────────────────────────────────────────────
+    // ─── fromJson ─────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("toJson(Blockchain)")
@@ -110,7 +136,7 @@ class ChainExporterTest {
         }
     }
 
-    // ─── fromJson ─────────────────────────────────────────────────────────────
+    // ─── toCsv ────────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("fromJson(String, BlockchainStorage)")
@@ -226,7 +252,18 @@ class ChainExporterTest {
         }
     }
 
-    // ─── toCsv ────────────────────────────────────────────────────────────────
+    // ─── toCsv – csvEscape edge cases ────────────────────────────────────────
+    //
+    // The private csvEscape helper has four distinct code paths that are not
+    // exercised by the happy-path CSV tests above:
+    //
+    //   1. value == null              → returns ""
+    //   2. value contains ','         → wraps in double-quotes
+    //   3. value contains '"'         → wraps + escapes inner quotes as ""
+    //   4. value contains '\n'        → wraps in double-quotes
+    //
+    // Each test below mines a single block whose transaction carries a crafted
+    // address that forces one of those paths.
 
     @Nested
     @DisplayName("toCsv(Blockchain)")
@@ -296,18 +333,7 @@ class ChainExporterTest {
         }
     }
 
-    // ─── toCsv – csvEscape edge cases ────────────────────────────────────────
-    //
-    // The private csvEscape helper has four distinct code paths that are not
-    // exercised by the happy-path CSV tests above:
-    //
-    //   1. value == null              → returns ""
-    //   2. value contains ','         → wraps in double-quotes
-    //   3. value contains '"'         → wraps + escapes inner quotes as ""
-    //   4. value contains '\n'        → wraps in double-quotes
-    //
-    // Each test below mines a single block whose transaction carries a crafted
-    // address that forces one of those paths.
+    // ─── Utility-class constructor guard ──────────────────────────────────────
 
     @Nested
     @DisplayName("toCsv – csvEscape edge cases")
@@ -387,7 +413,7 @@ class ChainExporterTest {
         }
     }
 
-    // ─── Utility-class constructor guard ──────────────────────────────────────
+    // ─── Private helpers ──────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("utility-class constructor")
@@ -405,31 +431,5 @@ class ChainExporterTest {
             assertInstanceOf(UnsupportedOperationException.class, ex.getCause(),
                 "Root cause must be UnsupportedOperationException");
         }
-    }
-
-    // ─── Private helpers ──────────────────────────────────────────────────────
-
-    /**
-     * Creates a minimal concrete {@link Transaction} subclass for testing.
-     *
-     * <p>Defined as an anonymous inner class here to keep the test self-contained
-     * without requiring {@code MoneyTransferTransaction} from the examples module
-     * on the test classpath.</p>
-     *
-     * @param sender   sender address
-     * @param receiver receiver address
-     * @param amount   decimal amount string
-     * @return an unsigned transaction ready for submission
-     */
-    private static Transaction makeTransaction(String sender, String receiver, String amount) {
-        return new Transaction(
-            UUID.randomUUID(),
-            sender,
-            receiver,
-            new BigDecimal(amount),
-            Instant.now(),
-            Map.of()) {
-            // Anonymous subclass — no extra fields needed for this test
-        };
     }
 }
