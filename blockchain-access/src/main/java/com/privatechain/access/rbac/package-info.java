@@ -3,7 +3,8 @@
  * each connected node address (FR-AC-02, FR-AC-03).
  *
  * <p>Three roles are defined:</p>
- * <table border="1" summary="Role capability matrix">
+ * <table border="1">
+ *   <caption>Role capability matrix</caption>
  *   <tr><th>Role</th><th>Submit Block</th><th>Submit Tx</th><th>Validate</th><th>Read</th></tr>
  *   <tr><td>NODE_ADMIN</td>  <td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
  *   <tr><td>NODE_MINER</td>  <td>Yes</td><td>Yes</td><td>No</td> <td>Yes</td></tr>
