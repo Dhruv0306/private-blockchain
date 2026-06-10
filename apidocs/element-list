@@ -1,3 +1,4 @@
+com.privatechain.access
 com.privatechain.access.allowlist
 com.privatechain.access.invite
 com.privatechain.access.rbac
@@ -16,6 +17,7 @@ com.privatechain.core.network
 com.privatechain.core.spi
 com.privatechain.crypto
 com.privatechain.examples.spring
+com.privatechain.network
 com.privatechain.network.gossip
 com.privatechain.network.peer
 com.privatechain.network.rpc
