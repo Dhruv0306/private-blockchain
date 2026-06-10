@@ -11,7 +11,7 @@
          ═══════════════════════════════════════════════════════ -->
     <groupId>com.privatechain</groupId>
     <artifactId>private-blockchain</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>pom</packaging>
 
     <name>Private Blockchain</name>
@@ -124,8 +124,9 @@
              CVE-2026-22733 (8.2) Auth bypass via CloudFoundry Actuator path conflict
              CVE-2025-22235 (7.3) EndpointRequest.to() null/** matcher for disabled endpoints -->
         <spring.boot.version>4.0.6</spring.boot.version>
-        <spring.webmvc.version>7.0.7</spring.webmvc.version>
-        <spring.web.version>7.0.7</spring.web.version>
+        <spring.webmvc.version>7.0.8</spring.webmvc.version>
+        <spring.web.version>7.0.8</spring.web.version>
+        <spring-framework.version>7.0.8</spring-framework.version>
 
         <junit.version>5.10.3</junit.version>
         <mockito.version>5.12.0</mockito.version>
@@ -486,6 +487,13 @@
             </dependency>
 
             <!-- Spring Boot BOM — imported so spring versions align -->
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-framework-bom</artifactId>
+                <version>${spring-framework.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
